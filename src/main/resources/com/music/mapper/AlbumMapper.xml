@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC
+        "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.music.mapper.AlbumMapper">
+
+    <!-- 全字段列表，供各 SQL 片段复用 -->
+    <sql id="allColumns">
+        album_id, title, artist, genre, price, stock, release_date, status
+    </sql>
+
+    <!-- ============ 任务二：基础 CRUD ============ -->
+
+    <!-- 查询全部，按主键升序 -->
+    <select id="selectAll" resultType="Album">
+        SELECT <include refid="allColumns"/>
+        FROM album
+        ORDER BY album_id
+    </select>
+
+    <!-- 按主键查询单条 -->
+    <select id="selectById" parameterType="int" resultType="Album">
+        SELECT <include refid="allColumns"/>
+        FROM album
+        WHERE album_id = #{albumId}
+    </select>
+
+    <!-- 新增，并回填自增主键到 albumId -->
+    <insert id="insert" parameterType="Album" useGeneratedKeys="true" keyProperty="albumId">
+        INSERT INTO album (title, artist, genre, price, stock, release_date, status)
+        VALUES (#{title}, #{artist}, #{genre}, #{price}, #{stock}, #{releaseDate}, #{status})
+    </insert>
+
+    <!-- 按主键整体更新 -->
+    <update id="update" parameterType="Album">
+        UPDATE album
+        SET title = #{title},
+            artist = #{artist},
+            genre = #{genre},
+            price = #{price},
+            stock = #{stock},
+            release_date = #{releaseDate},
+            status = #{status}
+        WHERE album_id = #{albumId}
+    </update>
+
+    <!-- 按主键删除 -->
+    <delete id="deleteById" parameterType="int">
+        DELETE FROM album WHERE album_id = #{albumId}
+    </delete>
+
+    <!-- ============ 任务三：动态 SQL ============ -->
+
+    <!-- 3.1 多条件模糊查询：where 标签自动剔除开头多余的 AND -->
+    <select id="selectByCondition" parameterType="Album" resultType="Album">
+        SELECT <include refid="allColumns"/>
+        FROM album
+        <where>
+            <if test="title != null and title != ''">
+                AND title LIKE CONCAT('%', #{title}, '%')
+            </if>
+            <if test="artist != null and artist != ''">
+                AND artist LIKE CONCAT('%', #{artist}, '%')
+            </if>
+            <if test="genre != null and genre != ''">
+                AND genre = #{genre}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY album_id
+    </select>
+
+    <!-- 3.2 动态更新：set 标签只更新非空字段，自动去除末尾多余逗号 -->
+    <update id="updateSelective" parameterType="Album">
+        UPDATE album
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="artist != null">artist = #{artist},</if>
+            <if test="genre != null">genre = #{genre},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="stock != null">stock = #{stock},</if>
+            <if test="releaseDate != null">release_date = #{releaseDate},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE album_id = #{albumId}
+    </update>
+
+    <!-- 3.3 批量删除：foreach 拼接 IN (...) -->
+    <delete id="deleteBatch">
+        DELETE FROM album WHERE album_id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 3.3 批量插入：foreach 拼接多组 VALUES -->
+    <insert id="insertBatch">
+        INSERT INTO album (title, artist, genre, price, stock, release_date, status) VALUES
+        <foreach collection="albums" item="a" separator=",">
+            (#{a.title}, #{a.artist}, #{a.genre}, #{a.price}, #{a.stock}, #{a.releaseDate}, #{a.status})
+        </foreach>
+    </insert>
+
+    <!-- 3.4 分支选择：优先标题精确，其次歌手精确，否则查在售 -->
+    <select id="selectSmart" parameterType="Album" resultType="Album">
+        SELECT <include refid="allColumns"/>
+        FROM album
+        <where>
+            <choose>
+                <when test="title != null and title != ''">
+                    AND title = #{title}
+                </when>
+                <when test="artist != null and artist != ''">
+                    AND artist = #{artist}
+                </when>
+                <otherwise>
+                    AND status = 1
+                </otherwise>
+            </choose>
+        </where>
+        ORDER BY album_id
+    </select>
+
+</mapper>
