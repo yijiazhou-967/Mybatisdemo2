@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     实验一 · 任务一 · 步骤 1.2  Maven 加速配置示例
+     ----------------------------------------------------------------------------
+     本文件仅为「示例」，用于说明如何配置本地仓库路径与阿里云镜像，
+     请勿直接覆盖你本机真实的 settings.xml！
+
+     真实文件位置（二选一）：
+       1) 全局：%MAVEN_HOME%/conf/settings.xml        （如 D:\Dapache-maven-3.9.x\conf）
+       2) 用户：%USERPROFILE%\.m2\settings.xml        （推荐，仅对当前用户生效）
+
+     你需要把下面两个 <...> 片段合并进你已有的 <settings> 根节点内，
+     并把自己的本地仓库路径、代理等按实际情况填写。
+     ============================================================================ -->
+
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0
+                              https://maven.apache.org/xsd/settings-1.2.0.xsd">
+
+    <!-- 1. 本地仓库路径：指向你自己的 Maven 仓库目录（按需修改） -->
+    <localRepository>D:/maven/repository</localRepository>
+
+    <!-- 2. 镜像配置：让所有依赖从阿里云公共仓库下载，显著提升国内下载速度 -->
+    <mirrors>
+        <mirror>
+            <id>aliyun-public</id>
+            <mirrorOf>*</mirrorOf>
+            <name>阿里云公共仓库</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </mirror>
+    </mirrors>
+
+    <!-- 3.（可选）代理 / 服务账号等其余配置，保持默认即可 -->
+</settings>
