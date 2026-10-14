@@ -1,0 +1,14 @@
+{
+    "verifiedAt":  "2026-10-14 11:36:09 +08:00",
+    "client":  "curl",
+    "method":  "GET",
+    "url":  "https://postman-echo.com/get?course=java-framework\u0026task=5",
+    "httpStatus":  200,
+    "assertions":  {
+                       "course":  "java-framework",
+                       "task":  "5",
+                       "customHeader":  "experiment-1-task-5",
+                       "accept":  "application/json"
+                   },
+    "desktopImportVerified":  false
+}

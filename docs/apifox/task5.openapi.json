@@ -1,0 +1,104 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "mybatis-lab 实验一任务五",
+    "version": "1.0.0",
+    "description": "公开接口练习；本项目是持久层实验，未提供业务 HTTP 接口。"
+  },
+  "servers": [
+    {
+      "url": "https://postman-echo.com"
+    }
+  ],
+  "paths": {
+    "/get": {
+      "get": {
+        "summary": "查询参数及请求头回显",
+        "operationId": "task5GetEcho",
+        "parameters": [
+          {
+            "name": "course",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "java-framework"
+            },
+            "example": "java-framework"
+          },
+          {
+            "name": "task",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "5"
+            },
+            "example": "5"
+          },
+          {
+            "name": "X-Lab-Task",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "experiment-1-task-5"
+            },
+            "example": "experiment-1-task-5"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "请求成功，返回查询参数和请求头",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "args",
+                    "headers",
+                    "url"
+                  ],
+                  "properties": {
+                    "args": {
+                      "type": "object",
+                      "properties": {
+                        "course": {
+                          "type": "string"
+                        },
+                        "task": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "headers": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  }
+                },
+                "example": {
+                  "args": {
+                    "course": "java-framework",
+                    "task": "5"
+                  },
+                  "headers": {
+                    "accept": "application/json",
+                    "x-lab-task": "experiment-1-task-5"
+                  },
+                  "url": "https://postman-echo.com/get?course=java-framework&task=5"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

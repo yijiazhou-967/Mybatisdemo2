@@ -1,6 +1,6 @@
-# 实验一 · 任务一至四：MyBatis、动态 SQL、MyBatis-Plus 与分页
+# 实验一 · MyBatis 开发与任务五排错实践
 
-课程：《JAVA框架技术（一）》（AI 赋能版）。沿用本项目的音乐专辑业务，数据库为 `music_store`、数据表为 `album`，对应指导书的员工示例。已实现任务一至四，保留手写 XML 与 MyBatis-Plus 两种持久层写法。
+课程：《JAVA框架技术（一）》（AI 赋能版）。沿用本项目的音乐专辑业务，数据库为 `music_store`、数据表为 `album`，对应指导书的员工示例。任务一至四的持久层代码、任务五故障演练和接口练习材料已实现，保留手写 XML 与 MyBatis-Plus 两种写法。
 
 ## 任务与文件对应
 
@@ -26,6 +26,9 @@
 | 4.3 通用 CRUD | 继承 BaseMapper，无需新建 XML | `AlbumPlusMapper.java` |
 | 4.4 条件构造器 | QueryWrapper 与 LambdaQueryWrapper 的多条件、范围和排序 | `AlbumQueries.java` |
 | 4.5 分页 | MySQL 分页插件，每页 3 条、总数和总页数 | `mybatis-config.xml`、`MyBatisPlusDemo.java` |
+| 5.1 错误排查 | 隔离复现参数错误、错误列映射、缺少主键回填，并验证修复 | `MyBatisFaultDrillTest.java`、`target/task5/fault-drills.log` |
+| 5.2 ApiFox 准备 | 公开 GET、请求头、导入集合与响应断言 | `docs/apifox/` |
+| 5.3 AI 代码甄别 | 版本、SQL、映射、事务、代码规范的核查与交互记录 | `docs/task5-lab-notes.md` |
 
 ## 任务一：环境搭建与项目初始化
 
@@ -197,6 +200,22 @@ result.getRecords().forEach(System.out::println);
 
 在初始化的 5 条样例中，分页应显示在售专辑 4 条、总页数 2、第一页 3 条；若已有数据发生变动，以实际查询为准。演示结束回滚临时记录。截图建议保留 MP 插入主键、两种查询结果、分页 COUNT/LIMIT SQL 和总数输出。
 
+## 任务五：日志排查与接口测试准备
+
+详细记录见 [任务五实验记录](docs/task5-lab-notes.md)。故障演练只修改正式 XML 的内存副本，在测试目录中运行，输出预期异常、错误结果、修复结果及回滚日志：
+
+```powershell
+.\mvnw.cmd -Pdatabase-tests "-Dtest=MyBatisFaultDrillTest" test
+```
+
+参数误写 tItle 的实际根因是 `ReflectionException`；错误列名导致 title 为 null；缺少 `useGeneratedKeys` 时插入成功但对象主键为 null。3 项演练均对正确写法进行了对照验证。
+
+ApiFox 请求材料位于 `docs/apifox/`。优先导入 `task5.postman_collection.json`，或使用 `task5.openapi.json` 导入接口定义。实际公开 GET 已返回 200 并通过 3 项响应断言；在本人桌面端创建 `mybatis-lab` 项目、发送请求并保存为用例的步骤见实验记录。项目目前没有业务 HTTP 服务，练习使用公开请求回显接口。
+
+本机 ApiFox 桌面安装器已通过哈希校验，但两次静默安装均在 System.dll 中以 `0xc0000005` 崩溃。客户端安装、项目创建和用例保存仍待完成；详细安装证据见 `docs/apifox/desktop-installation.json`。
+
+AI 代码核查覆盖依赖版本、表名与字段、用户值绑定、结果映射、主键、分页、事务及命名规范；记录列明实际工程修正，供本人复核后写入实验报告。
+
 ## 测试与验收
 
 默认运行 13 项 SQL/参数和 MP 配置测试，无需启动 MySQL：
@@ -205,7 +224,7 @@ result.getRecords().forEach(System.out::println);
 .\mvnw.cmd test
 ```
 
-数据库初始化并配置连接后，运行全部测试（13 项无数据库测试 + 18 项 MySQL 测试）：
+数据库初始化并配置连接后，运行全部测试（13 项无数据库测试 + 21 项 MySQL 测试，共 34 项）：
 
 ```powershell
 .\mvnw.cmd -Pdatabase-tests test
@@ -218,6 +237,8 @@ MySQL 测试先核实 album 使用 InnoDB，各用例自行插入独立标记数
 2026-10-14 本机验收：20 项测试全部通过；`crud`、`dynamic` 演示均正常。初始化脚本已在独立临时数据库中连续执行 3 次，验证样例不重复、自建记录保留、修改过的样例价格不被覆盖，验收后删除了该临时数据库。
 
 2026-10-14 加入任务四后，31 项测试全部通过，包括原有 20 项与新增 11 项。任务四验证通用 CRUD、字段映射、两种构造器结果一致、价格并列排序、每页 3 条的首页/中间页/末页、空结果、页码溢出及 XML 与 MP 共存。完整 MP 演示也已运行，实际分页输出总记录数 4、总页数 2、首页 3 条；依赖树确认 MyBatis 核心仅有 3.5.10 一个版本。
+
+2026-10-14 加入任务五后，34 项测试全部通过，3 项故障演练已实际运行并记录修复结果。公开 GET 请求回显参数和请求头正确，导入集合中的 3 项断言对实际响应执行通过。桌面端用例保存以本人 ApiFox 操作为准。
 
 ## 排错与实验记录
 

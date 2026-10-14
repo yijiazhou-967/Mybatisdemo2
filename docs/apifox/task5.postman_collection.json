@@ -1,0 +1,77 @@
+{
+  "info": {
+    "name": "mybatis-lab 实验一任务五",
+    "description": "公开 GET 请求练习；课程参数与示例请求头，无账号和口令。导入 Apifox 后运行并保存为用例。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "任务五 GET 请求及请求头回显",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP status is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const body = pm.response.json();",
+              "pm.test(\"Query parameters are echoed\", function () {",
+              "    pm.expect(body.args.course).to.eql(\"java-framework\");",
+              "    pm.expect(body.args.task).to.eql(\"5\");",
+              "});",
+              "pm.test(\"Custom request header is echoed\", function () {",
+              "    const key = Object.keys(body.headers).find(function (name) {",
+              "        return name.toLowerCase() === \"x-lab-task\";",
+              "    });",
+              "    pm.expect(key).to.be.a(\"string\");",
+              "    pm.expect(body.headers[key]).to.eql(\"experiment-1-task-5\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "X-Lab-Task",
+            "value": "experiment-1-task-5",
+            "type": "text"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "url": {
+          "raw": "https://postman-echo.com/get?course=java-framework&task=5",
+          "protocol": "https",
+          "host": [
+            "postman-echo",
+            "com"
+          ],
+          "path": [
+            "get"
+          ],
+          "query": [
+            {
+              "key": "course",
+              "value": "java-framework"
+            },
+            {
+              "key": "task",
+              "value": "5"
+            }
+          ]
+        },
+        "description": "发送后应返回 HTTP 200，args 回显课程参数，headers 回显 X-Lab-Task。"
+      }
+    }
+  ]
+}

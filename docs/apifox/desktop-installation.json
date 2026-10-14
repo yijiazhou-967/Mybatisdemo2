@@ -1,0 +1,24 @@
+{
+  "checkedOn": "2026-10-14",
+  "packageId": "Ruihu.Apifox",
+  "version": "2.8.49",
+  "installerUrl": "https://file-assets.apifox.com/download/2.8.49/Apifox-2.8.49.exe",
+  "sha256": "7f954c6cd8b87704ea55f09e2c2bf35720d55a312c5fc09dfdbc8393e9eccd77",
+  "checksumVerified": true,
+  "attempts": [
+    {
+      "method": "winget silent current-user installation",
+      "exitCodeUnsigned": 3221225477
+    },
+    {
+      "method": "direct silent current-user installation",
+      "exitCodeSigned": -1073741819
+    }
+  ],
+  "windowsExceptionCode": "0xc0000005",
+  "faultingModule": "System.dll",
+  "installed": false,
+  "desktopProjectCreated": false,
+  "desktopCaseSaved": false,
+  "alternatePackageProbe": "The official latest ZIP URL returned HTML in this environment."
+}

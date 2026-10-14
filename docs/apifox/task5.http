@@ -1,0 +1,5 @@
+### 实验一任务五：公开 GET 请求，导入 ApiFox 后保存为用例
+GET https://postman-echo.com/get?course=java-framework&task=5
+Accept: application/json
+X-Lab-Task: experiment-1-task-5
+
