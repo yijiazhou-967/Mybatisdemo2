@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapper.DeptMapper">
+    <resultMap id="deptMap" type="Dept">
+        <id property="deptno" column="deptno"/>
+        <result property="dname" column="dname"/>
+        <result property="loc" column="loc"/>
+        <result property="deleted" column="deleted"/>
+    </resultMap>
+    <resultMap id="deptWithEmpsMap" type="Dept" extends="deptMap">
+        <collection property="emps" resultMap="com.mapper.EmpMapper.empMap"
+                    columnPrefix="e_" notNullColumn="empno"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="deptMap">
+        SELECT deptno, dname, loc, deleted FROM dept WHERE deleted = 0 ORDER BY deptno
+    </select>
+    <select id="selectById" resultMap="deptMap">
+        SELECT deptno, dname, loc, deleted FROM dept
+        WHERE deptno = #{deptno} AND deleted = 0
+    </select>
+    <!-- 一次 LEFT JOIN 加载整个部门，空部门的 emps 为空列表。 -->
+    <select id="selectByIdWithEmps" resultMap="deptWithEmpsMap">
+        SELECT d.deptno, d.dname, d.loc, d.deleted,
+               e.empno AS e_empno, e.ename AS e_ename, e.job AS e_job, e.mgr AS e_mgr,
+               e.hiredate AS e_hiredate, e.sal AS e_sal, e.comm AS e_comm,
+               e.deptno AS e_deptno, e.deleted AS e_deleted
+        FROM dept d
+        LEFT JOIN emp e ON e.deptno = d.deptno AND e.deleted = 0
+        WHERE d.deptno = #{deptno} AND d.deleted = 0
+        ORDER BY e.empno
+    </select>
+    <insert id="insert" parameterType="Dept" useGeneratedKeys="true" keyProperty="deptno">
+        INSERT INTO dept (dname, loc, deleted) VALUES (#{dname}, #{loc}, 0)
+    </insert>
+    <update id="update" parameterType="Dept">
+        UPDATE dept SET dname = #{dname}, loc = #{loc}
+        WHERE deptno = #{deptno} AND deleted = 0
+    </update>
+    <update id="deleteById">
+        UPDATE dept SET deleted = 1 WHERE deptno = #{deptno} AND deleted = 0
+    </update>
+</mapper>

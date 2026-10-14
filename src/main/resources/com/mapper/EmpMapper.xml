@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapper.EmpMapper">
+    <resultMap id="empMap" type="Emp">
+        <id property="empno" column="empno"/>
+        <result property="ename" column="ename"/>
+        <result property="job" column="job"/>
+        <result property="mgr" column="mgr"/>
+        <result property="hiredate" column="hiredate"/>
+        <result property="sal" column="sal"/>
+        <result property="comm" column="comm"/>
+        <result property="deptno" column="deptno"/>
+        <result property="deleted" column="deleted"/>
+    </resultMap>
+    <resultMap id="empWithDeptMap" type="Emp" extends="empMap">
+        <association property="dept" resultMap="com.mapper.DeptMapper.deptMap"
+                     columnPrefix="d_" notNullColumn="deptno"/>
+    </resultMap>
+    <sql id="columns">empno, ename, job, mgr, hiredate, sal, comm, deptno, deleted</sql>
+
+    <select id="selectAll" resultMap="empMap">
+        SELECT <include refid="columns"/> FROM emp WHERE deleted = 0 ORDER BY empno
+    </select>
+    <select id="selectById" resultMap="empMap">
+        SELECT <include refid="columns"/> FROM emp WHERE empno = #{empno} AND deleted = 0
+    </select>
+    <select id="selectByDeptno" resultMap="empMap">
+        SELECT <include refid="columns"/> FROM emp WHERE deptno = #{deptno} AND deleted = 0
+        ORDER BY empno
+    </select>
+    <!-- 同时加载员工及部门，未分配部门时 dept 为 null。 -->
+    <select id="selectByIdWithDept" resultMap="empWithDeptMap">
+        SELECT e.empno, e.ename, e.job, e.mgr, e.hiredate, e.sal, e.comm, e.deptno, e.deleted,
+               d.deptno AS d_deptno, d.dname AS d_dname, d.loc AS d_loc, d.deleted AS d_deleted
+        FROM emp e
+        LEFT JOIN dept d ON d.deptno = e.deptno AND d.deleted = 0
+        WHERE e.empno = #{empno} AND e.deleted = 0
+    </select>
+    <insert id="insert" parameterType="Emp" useGeneratedKeys="true" keyProperty="empno">
+        INSERT INTO emp (ename, job, mgr, hiredate, sal, comm, deptno, deleted)
+        VALUES (#{ename}, #{job}, #{mgr}, #{hiredate,jdbcType=DATE},
+                #{sal}, #{comm}, #{deptno}, 0)
+    </insert>
+    <update id="update" parameterType="Emp">
+        UPDATE emp SET ename = #{ename}, job = #{job}, mgr = #{mgr},
+                       hiredate = #{hiredate,jdbcType=DATE}, sal = #{sal},
+                       comm = #{comm}, deptno = #{deptno}
+        WHERE empno = #{empno} AND deleted = 0
+    </update>
+    <update id="deleteById">
+        UPDATE emp SET deleted = 1 WHERE empno = #{empno} AND deleted = 0
+    </update>
+</mapper>

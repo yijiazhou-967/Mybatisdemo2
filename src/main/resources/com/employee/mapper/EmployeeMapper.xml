@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC
+        "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.employee.mapper.EmployeeMapper">
+
+    <!-- 任务二：显式结果映射，与全局驼峰映射对照学习 -->
+    <resultMap id="empMap" type="Employee">
+        <id property="empId" column="staff_id"/>
+        <result property="name" column="full_name"/>
+        <result property="department" column="department"/>
+        <result property="gender" column="gender"/>
+        <result property="salary" column="monthly_salary"/>
+        <result property="post" column="job_title"/>
+        <result property="hireDate" column="entry_date"/>
+        <result property="status" column="work_status"/>
+        <result property="email" column="email"/>
+        <result property="officeLocation" column="office_location"/>
+    </resultMap>
+
+    <!-- 全字段列表，供各 SQL 片段复用 -->
+    <sql id="allColumns">
+        staff_id, full_name, department, gender, monthly_salary, job_title,
+        entry_date, work_status, email, office_location
+    </sql>
+
+    <!-- ============ 任务二：基础 CRUD ============ -->
+
+    <!-- 查询全部，按主键升序 -->
+    <select id="selectAll" resultMap="empMap">
+        SELECT <include refid="allColumns"/>
+        FROM staff_info
+        ORDER BY staff_id
+    </select>
+
+    <!-- 按主键查询单条 -->
+    <select id="selectById" resultMap="empMap">
+        SELECT <include refid="allColumns"/>
+        FROM staff_info
+        WHERE staff_id = #{empId}
+    </select>
+
+    <!-- 新增，并回填自增主键到 empId -->
+    <insert id="insert" parameterType="Employee" useGeneratedKeys="true" keyProperty="empId">
+        INSERT INTO staff_info (full_name, department, gender, monthly_salary, job_title,
+                               entry_date, work_status, email, office_location)
+        VALUES (#{name}, #{department}, #{gender}, #{salary}, #{post},
+                #{hireDate,jdbcType=DATE}, #{status}, #{email}, #{officeLocation})
+    </insert>
+
+    <!-- 按主键整体更新 -->
+    <update id="update" parameterType="Employee">
+        UPDATE staff_info
+        SET full_name = #{name},
+            department = #{department},
+            gender = #{gender},
+            monthly_salary = #{salary},
+            job_title = #{post},
+            entry_date = #{hireDate,jdbcType=DATE},
+            work_status = #{status},
+            email = #{email},
+            office_location = #{officeLocation}
+        WHERE staff_id = #{empId}
+    </update>
+
+    <!-- 按主键删除 -->
+    <delete id="deleteById">
+        DELETE FROM staff_info WHERE staff_id = #{empId}
+    </delete>
+
+    <!-- ============ 任务三：动态 SQL ============ -->
+
+    <sql id="conditionFilters">
+        <if test="name != null and name != ''">
+            AND full_name LIKE CONCAT('%', #{name}, '%')
+        </if>
+        <if test="department != null and department != ''">
+            AND department LIKE CONCAT('%', #{department}, '%')
+        </if>
+        <if test="gender != null and gender != ''">
+            AND gender = #{gender}
+        </if>
+        <if test="status != null">
+            AND work_status = #{status}
+        </if>
+    </sql>
+
+    <!-- 3.1 多条件模糊查询：where 标签自动剔除开头多余的 AND -->
+    <select id="selectByCondition" parameterType="Employee" resultMap="empMap">
+        SELECT <include refid="allColumns"/> FROM staff_info
+        <where><include refid="conditionFilters"/></where>
+        ORDER BY staff_id
+    </select>
+
+    <!-- trim 与 where 等效，共用条件片段，避免两份条件逻辑不同 -->
+    <select id="selectByConditionWithTrim" parameterType="Employee" resultMap="empMap">
+        SELECT <include refid="allColumns"/> FROM staff_info
+        <trim prefix="WHERE" prefixOverrides="AND |OR ">
+            <include refid="conditionFilters"/>
+        </trim>
+        ORDER BY staff_id
+    </select>
+
+    <!-- 3.2 动态更新：set 标签只更新非空字段，自动去除末尾多余逗号 -->
+    <update id="updateSelectiveRows" parameterType="Employee">
+        UPDATE staff_info
+        <set>
+            <if test="name != null">full_name = #{name},</if>
+            <if test="department != null">department = #{department},</if>
+            <if test="gender != null">gender = #{gender},</if>
+            <if test="salary != null">monthly_salary = #{salary},</if>
+            <if test="post != null">job_title = #{post},</if>
+            <if test="hireDate != null">entry_date = #{hireDate},</if>
+            <if test="status != null">work_status = #{status},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="officeLocation != null">office_location = #{officeLocation},</if>
+        </set>
+        WHERE staff_id = #{empId}
+    </update>
+
+    <!-- 3.3 批量删除：foreach 拼接 IN (...) -->
+    <delete id="deleteBatchRows">
+        DELETE FROM staff_info WHERE staff_id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 3.3 批量插入：foreach 拼接多组 VALUES -->
+    <insert id="insertBatchRows">
+        INSERT INTO staff_info (full_name, department, gender, monthly_salary, job_title,
+                               entry_date, work_status, email, office_location) VALUES
+        <foreach collection="employees" item="a" separator=",">
+            (#{a.name}, #{a.department}, #{a.gender}, #{a.salary}, #{a.post},
+             #{a.hireDate,jdbcType=DATE}, #{a.status}, #{a.email}, #{a.officeLocation})
+        </foreach>
+    </insert>
+
+    <!-- 3.4 分支选择：优先姓名精确，其次部门精确，否则查询全部 -->
+    <select id="selectSmart" parameterType="Employee" resultMap="empMap">
+        SELECT <include refid="allColumns"/>
+        FROM staff_info
+        <where>
+            <choose>
+                <when test="name != null and name != ''">
+                    AND full_name = #{name}
+                </when>
+                <when test="department != null and department != ''">
+                    AND department = #{department}
+                </when>
+                <otherwise>
+                    AND 1 = 1
+                </otherwise>
+            </choose>
+        </where>
+        ORDER BY staff_id
+    </select>
+
+</mapper>

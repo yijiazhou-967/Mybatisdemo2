@@ -1,5 +1,6 @@
 target/
 src/main/resources/jdbc-local.properties
+src/main/resources/db-local.properties
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

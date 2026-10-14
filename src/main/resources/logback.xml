@@ -15,7 +15,7 @@
     </root>
 
     <!-- Mapper 包单独开到 DEBUG，输出 SQL、占位符实参与结果集行数 -->
-    <logger name="com.music.mapper" level="DEBUG" additivity="false">
+    <logger name="com.employee.mapper" level="DEBUG" additivity="false">
         <appender-ref ref="CONSOLE"/>
     </logger>
 </configuration>

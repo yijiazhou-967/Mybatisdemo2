@@ -17,8 +17,8 @@
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
     </root>
-    <logger name="com.music.mapper" level="DEBUG"/>
-    <logger name="com.music.diagnostic" level="DEBUG" additivity="false">
+    <logger name="com.employee.mapper" level="DEBUG"/>
+    <logger name="com.employee.diagnostic" level="DEBUG" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FAULT_LOG"/>
     </logger>

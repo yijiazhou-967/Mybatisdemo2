@@ -1,6 +1,6 @@
 # 实验一任务五日志排查与接口测试记录
 
-本任务基于音乐专辑项目完成三类 MyBatis 故障演练、公开 GET 请求准备和代码核查。故障及修复均使用正式 XML 的内存副本，在独立测试事务中执行；正式业务映射保持正确。ApiFox 桌面端的项目导入与用例保存按下面步骤完成。
+本任务基于员工项目完成三类 MyBatis 故障演练、公开 GET 请求准备和代码核查。故障及修复均使用正式 XML 的内存副本，在独立测试事务中执行；正式业务映射保持正确。ApiFox 桌面端的项目导入与用例保存按下面步骤完成。
 
 ## 步骤 5.1 三类故障与修复
 
@@ -10,23 +10,23 @@
 .\mvnw.cmd -Pdatabase-tests "-Dtest=MyBatisFaultDrillTest" test
 ```
 
-代码：`src/test/java/com/music/diagnostic/MyBatisFaultDrillTest.java`。日志：`target/task5/fault-drills.log`。JUnit 报告：`target/surefire-reports/com.music.diagnostic.MyBatisFaultDrillTest.txt`。日志按 UTF-8 保存，包含 SQL、参数、真实异常堆栈、修复后的结果和回滚记录。
+代码：`src/test/java/com/employee/diagnostic/MyBatisFaultDrillTest.java`。日志：`target/task5/fault-drills.log`。JUnit 报告：`target/surefire-reports/com.employee.diagnostic.MyBatisFaultDrillTest.txt`。日志按 UTF-8 保存，包含 SQL、参数、真实异常堆栈、修复后的结果和回滚记录。
 
 | 演练 | 故意制造的错误 | 实际观察 | 修复与验证 |
 | --- | --- | --- | --- |
-| 参数拼写 | INSERT 中将 `#{title}` 改为 `#{tItle}` | `PersistenceException` 包装 `ReflectionException`，缺少 tItle 的 getter；未成功执行插入 | 改回 `#{title}`，插入影响 1 行，主键和标题正确 |
-| 列映射 | resultMap 中 title 对应列改为 `missing_title` | SELECT 返回 1 行，title 为 null，artist 等字段仍有值；没有 SQL 语法异常 | 改回实际列 title，在同一事务查询得到正确标题 |
-| 主键回填 | 删除 INSERT 的 `useGeneratedKeys="true"` | INSERT 影响 1 行，对象 albumId 为 null，但按独立歌手标记查询可见数据库已生成主键 | 恢复 `useGeneratedKeys` 与 `keyProperty="albumId"`，新对象主键正确回填 |
+| 参数拼写 | INSERT 中将 `#{name}` 改为 `#{nAme}` | `PersistenceException` 包装 `ReflectionException`，缺少 nAme 的 getter；未成功执行插入 | 改回 `#{name}`，插入影响 1 行，主键和姓名正确 |
+| 列映射 | resultMap 中 name 对应列 full_name 改为 `missing_name` | SELECT 返回 1 行，name 为 null，department 等字段仍有值；没有 SQL 语法异常 | 改回实际列 full_name，在同一事务查询得到正确姓名 |
+| 主键回填 | 删除 INSERT 的 `useGeneratedKeys="true"` | INSERT 影响 1 行，对象 empId 为 null，但按独立部门标记查询可见数据库已生成主键 | 恢复 `useGeneratedKeys` 与 `keyProperty="empId"`，新对象主键正确回填 |
 
 参数错误的关键日志摘录：
 
 ```text
-ReflectionException: There is no getter for property named 'tItle' in 'class com.music.entity.Album'
+ReflectionException: There is no getter for property named 'nAme' in 'class com.employee.entity.Employee'
 ```
 
 指导书使用员工示例描述参数绑定异常；当前项目的单个实体参数在该 MyBatis 版本下实际产生以上反射异常。因此报告填写实际异常类型，不将它写成并未出现的 `ParameterBindingException`。
 
-错误列名并不一定产生异常。本次错误结果映射仍得到一个对象，需要通过 title 是否为 null、其他字段是否正常和真实表结构定位问题。插入影响行数为 1 也不能证明主键已回填，必须分别检查对象主键和数据库记录。
+错误列名并不一定产生异常。本次错误结果映射仍得到一个对象，需要通过 name 是否为 null、其他字段是否正常和真实表结构定位问题。插入影响行数为 1 也不能证明主键已回填，必须分别检查对象主键和数据库记录。
 
 三个用例先检查 InnoDB，再使用同一事务比较故障与修复版本。测试结束显式回滚，即使断言失败也会清理；出现预期异常是演练结果，JUnit 通过表示错误已被正确捕获且修复验证成功。每次运行的自增主键可能不同，不应在报告中写死某个 ID。
 
@@ -73,14 +73,14 @@ X-Lab-Task: experiment-1-task-5
 | 核查项 | 项目证据 | 核查结论 |
 | --- | --- | --- |
 | 版本统一 | pom 由 MP 3.5.3.1 提供 MyBatis 3.5.10；任务四依赖树只有一个 MyBatis 核心版本 | MP 各模块版本一致，补齐 Spring Core 后 SQL 注入与查询通过 |
-| 表与字段 | sql/init.sql、Album 实体、XML 的 8 个字段及 MP 表注解 | album_id/release_date 与属性映射一致，金额使用 BigDecimal、日期使用 LocalDate |
+| 表与字段 | sql/init.sql、Employee 实体、XML 的 10 个字段及 MP 表注解 | staff_info 的 staff_id/entry_date 等列与属性映射一致，金额使用 BigDecimal、日期使用 LocalDate |
 | 用户值绑定 | XML CRUD/动态 SQL 使用 `#{}`；条件构造器使用绑定值 | 未用 `${}` 拼接用户查询值；jdbc 配置中的 `${jdbc.*}` 是连接配置引用 |
-| 映射完整 | 8 字段 resultMap 测试、真实插入查询、MP 字段映射测试 | 标题、歌手、风格、金额、库存、日期、状态及主键有对应验证 |
+| 映射完整 | 10 字段 resultMap 测试、真实插入查询、MP 字段映射测试 | 姓名、部门、性别、金额、岗位、日期、状态、邮箱、办公地点及主键有对应验证 |
 | 主键回填 | XML useGeneratedKeys/keyProperty、MP IdType.AUTO、任务五对照演练 | 两种正确写法均能回填；缺失配置时通过数据库记录核实问题 |
-| 动态 SQL 边界 | 空更新拒绝、空批量返回 0、null 参数拒绝、库存/状态 0 的更新测试 | 不生成无 SET 或无 VALUES 的 SQL，零值不会误判为未填写 |
-| 分页与排序 | 已注册 MySQL 内部分页插件，价格降序后追加主键升序 | 实际测试 COUNT、偏移和页码边界，价格并列时顺序稳定 |
+| 动态 SQL 边界 | 空更新拒绝、空批量返回 0、null 参数拒绝、工资/状态 0 的更新测试 | 不生成无 SET 或无 VALUES 的 SQL，零值不会误判为未填写 |
+| 分页与排序 | 已注册 MySQL 内部分页插件，工资降序后追加主键升序 | 实际测试 COUNT、偏移和页码边界，工资并列时顺序稳定 |
 | 事务与资源 | try-with-resources、InnoDB 前置检查、测试 finally 回滚 | 演练和验收只操作自建记录，不依赖固定业务 ID |
-| 命名和格式 | AlbumMapper 与 AlbumPlusMapper 职责、故障代码集中在 test 目录 | 正式 XML 不残留故障；使用独立测试 namespace 避免覆盖正常 SQL |
+| 命名和格式 | EmployeeMapper 与 EmployeePlusMapper 职责、故障代码集中在 test 目录 | 正式 XML 不残留故障；使用独立测试 namespace 避免覆盖正常 SQL |
 | 配置口令 | jdbc-local.properties 被 Git 忽略，连接支持环境变量覆盖 | 请求练习及日志不包含数据库口令；本地配置不应公开提交 |
 
 实际 AI 交互与工程修正可按以下记录核对。日期为本次工作日期，不应另编不存在的个人提示词或截图。
@@ -90,6 +90,7 @@ X-Lab-Task: experiment-1-task-5
 | 完善实验一任务一二三 | 数据保留式初始化、CRUD、动态 SQL、边界参数校验、回滚测试 | 表结构、事务边界与条件行为 |
 | 完成任务四 | MP 实体与通用 Mapper、两种 Wrapper、分页及测试 | 依赖兼容、内部插件注册、业务状态与逻辑删除区别 |
 | 完成任务五 | 三类故障及修复、真实异常记录、请求导入材料、断言及审查结论 | 真实日志与报告描述一致，ApiFox 用例需要在客户端保存 |
+| 将项目改成员工表 | 员工实体与 emp 表、员工 Mapper/演示/测试、employee_db 连接和 IDEA 运行配置 | 字段映射、员工样例、启动入口与旧数据库数据保留 |
 
 本次工程校验修正：将演练预期异常类型按实际运行记录为 ReflectionException；将故障限制在内存副本；给请求材料增加响应断言；区分公开 GET 验证与桌面端用例保存。本人复核后可把判断依据和自己的修正建议补入报告“AI 应用记录”部分。
 

@@ -1,262 +1,165 @@
-# 实验一 · MyBatis 开发与任务五排错实践
+# MyBatis 部门员工与员工档案实验
 
-课程：《JAVA框架技术（一）》（AI 赋能版）。沿用本项目的音乐专辑业务，数据库为 `music_store`、数据表为 `album`，对应指导书的员工示例。任务一至四的持久层代码、任务五故障演练和接口练习材料已实现，保留手写 XML 与 MyBatis-Plus 两种写法。
+## 部门与员工多表查询（本次导入）
 
-## 任务与文件对应
+提供的 `Dept.java`、`Emp.java` 已按原包名 `com.entity` 导入；原始 `dept_emp.sql` 保存在 `sql/dept_emp.sql`。
 
-| 指导书步骤 | 实现或操作 | 文件 |
-| --- | --- | --- |
-| 1.1 数据库准备 | 建库、建表、索引、5 条样例，重复执行保留已有数据 | `sql/init.sql` |
-| 1.2 Maven 环境配置 | 本地仓库与阿里云镜像示例、Maven Wrapper | `docs/maven-settings-example.xml`、`.mvn/wrapper/` |
-| 1.3 Git 初始化 | 项目已有 Git 仓库及任务 1、任务 2/3 的历史提交 | `git log --oneline` |
-| 1.4 AI 插件 | 在 IDEA 安装、登录并保留实际交互记录 | 需本人在 IDEA 完成 |
-| 1.5 Maven 项目与依赖 | Java 11、MyBatis、MySQL、日志、JUnit | `pom.xml` |
-| 2.1 全局配置 | 数据源、事务、驼峰映射、别名、Mapper 扫描 | `src/main/resources/mybatis-config.xml` |
-| 2.2 实体类 | 主键、字符串、金额、日期、状态与存取方法 | `src/main/java/com/music/entity/Album.java` |
-| 2.3 Mapper 与映射 | CRUD、显式 resultMap、自增主键回填 | `AlbumMapper.java`、`AlbumMapper.xml` |
-| 2.4 第一个程序 | 共用 SqlSessionFactory、会话关闭、三种演示模式 | `MusicStoreDemo.java`、`MyBatisUtil.java` |
-| 2.5 SQL 日志 | 输出 SQL、占位参数、结果条数 | `src/main/resources/logback.xml` |
-| 2.6 JUnit | CRUD、字段映射、删除、事务回滚 | `AlbumMapperTest.java` |
-| 3.1 多条件查询 | `if/where` 与等效 `trim`，条件为空查询全部 | `selectByCondition`、`selectByConditionWithTrim` |
-| 3.2 动态更新 | `set`，仅更新非空字段，拒绝空更新 | `updateSelective` |
-| 3.3 批量操作 | `foreach`、`@Param`、空列表处理 | `insertBatch`、`deleteBatch` |
-| 3.4 分支查询 | 标题优先，其次歌手，无条件查全部 | `selectSmart` |
-| 4.1 MP 依赖与配置 | MP 3.5.3.1 提供 MyBatis 核心，使用 MP 会话工厂构建器 | `pom.xml`、`MyBatisUtil.java` |
-| 4.2 实体注解 | 表名、自增主键、日期字段 | `Album.java` |
-| 4.3 通用 CRUD | 继承 BaseMapper，无需新建 XML | `AlbumPlusMapper.java` |
-| 4.4 条件构造器 | QueryWrapper 与 LambdaQueryWrapper 的多条件、范围和排序 | `AlbumQueries.java` |
-| 4.5 分页 | MySQL 分页插件，每页 3 条、总数和总页数 | `mybatis-config.xml`、`MyBatisPlusDemo.java` |
-| 5.1 错误排查 | 隔离复现参数错误、错误列映射、缺少主键回填，并验证修复 | `MyBatisFaultDrillTest.java`、`target/task5/fault-drills.log` |
-| 5.2 ApiFox 准备 | 公开 GET、请求头、导入集合与响应断言 | `docs/apifox/` |
-| 5.3 AI 代码甄别 | 版本、SQL、映射、事务、代码规范的核查与交互记录 | `docs/task5-lab-notes.md` |
+| 文件 | 用途 |
+| --- | --- |
+| `src/main/resources/db.properties` | `dept_emp_db` 数据库连接默认配置 |
+| `src/main/resources/db-local.properties` | 本机账号口令，已被 Git 忽略 |
+| `src/main/resources/mybatis-config.xml` | 加载数据库配置、实体别名和两个 Mapper |
+| `src/main/resources/log4j.properties` | 控制台 SQL、绑定参数和结果行数日志 |
+| `src/main/java/com/util/MyBatisUtil.java` | 读取配置、共享会话工厂、创建 SqlSession |
+| `src/main/java/com/mapper/DeptMapper.java` | 部门 CRUD 和一对多员工查询 |
+| `src/main/java/com/mapper/EmpMapper.java` | 员工 CRUD 和多对一部门查询 |
+| `src/main/resources/com/mapper/DeptMapper.xml` | 部门 SQL 与 collection 映射 |
+| `src/main/resources/com/mapper/EmpMapper.xml` | 员工 SQL 与 association 映射 |
+| `src/test/java/com/mapper/DeptMapperTest.java` | 部门 CRUD、一对多、空部门和逻辑删除测试 |
+| `src/test/java/com/mapper/EmpMapperTest.java` | 员工 CRUD、多对一、空部门引用和事务回滚测试 |
+| `src/test/java/com/mapper/MapperConfigurationTest.java` | 不连接数据库的配置与参数绑定测试 |
 
-## 任务一：环境搭建与项目初始化
+先在 MySQL 客户端执行 `source sql/dept_emp_init.sql;`，再运行以下测试，或在 IDEA 中直接运行两个 Mapper 测试类：
 
-### 1.1 数据库准备
+```powershell
+.\mvnw.cmd -Pdatabase-tests "-Dtest=com.mapper.*Test" test
+```
 
-使用 JDK 11 或 17、MySQL 8.0、IntelliJ IDEA；Maven Wrapper 固定使用 Maven 3.9.6。实体使用 `LocalDate` 表示日期、`BigDecimal` 表示金额。本项目保留已有 JUnit 5 与 SLF4J/Logback，不改成指导书示例的 JUnit 4/Log4j；它们承担相同的测试和日志功能。
+原始 SQL 包含 `DROP TABLE`，项目实际初始化使用独立的 `dept_emp_db` 和可重复执行的 `dept_emp_init.sql`。该脚本保留原始 4 个部门、14 名员工，并补充两个实体已有的 `deleted` 列；已有同名表不会自动修改结构。传统 MyBatis 的 XML 显式实现 `deleted=0` 查询过滤及 `deleted=1` 逻辑删除。关联查询使用 LEFT JOIN，空部门返回空员工列表，员工未分配部门时关联对象为 null。
 
-在项目根目录启动 MySQL 客户端，随后在 **MySQL 命令行**中导入脚本。此方式也适用于 Windows PowerShell：
+本地配置优先级：JVM 的 `db.*` 属性 → `DEPT_EMP_DB_*` 环境变量 → `db-local.properties` → `db.properties`。日志由 [reload4j](https://reload4j.qos.ch/) 读取 Log4j 1.x 格式的 `log4j.properties`，SQL 日志级别为 DEBUG。2026-10-15 新增 12 项测试及原有 34 项测试全部通过；测试中的临时记录均回滚。
+
+## 员工档案实验（原有功能）
+
+课程：《JAVA框架技术（一）》。项目使用 `ssm_emp.staff_info` 企业员工档案表，自定义字段和样例数据，并完成实验一的基础 CRUD、动态 SQL、批量操作、MyBatis-Plus 条件查询与分页，以及任务五故障演练。
+
+这是 Java 控制台项目。运行入口为 `com.employee.EmployeeDemo`，结果与 SQL 日志显示在控制台；无需通过 Tomcat 部署。原员工档案功能读取 `employee-mybatis-config.xml`、`jdbc.properties` 和 `jdbc-local.properties`，连接 `ssm_emp.staff_info`。
+
+## 快速运行（IDEA）
+
+1. 用 IDEA 打开项目，重新加载 Maven 依赖，使用 JDK 11 或 17。
+2. 启动 MySQL 8.0，执行 `sql/init.sql` 创建员工库、自定义档案表与 5 条样例。
+3. 核对 `src/main/resources/jdbc-local.properties` 中的账号、密码和数据库 URL。当前连接的数据库名为 `ssm_emp`；新检出项目可复制 `jdbc.properties` 为 `jdbc-local.properties` 后填写。
+4. 在 IDEA 的运行配置下拉框选择 `EmployeeDemo` 并运行；也可打开 `src/main/java/com/employee/EmployeeDemo.java`，点击 `main` 左侧的绿色运行按钮。
+
+项目提供 `.run/EmployeeDemo.run.xml` 和 `.run/MyBatisPlusDemo.run.xml`。如果 IDEA 报模块不存在，重新加载 Maven，并在配置的“使用模块的类路径”中选择当前项目模块。旧的 Tomcat/WAR 或 `MusicStoreDemo` 配置不适用于当前入口。
+
+在项目根目录终端启动 MySQL 客户端：
 
 ```powershell
 mysql --default-character-set=utf8mb4 -u root -p
 ```
 
+然后在 MySQL 命令行执行：
+
 ```sql
 source sql/init.sql;
-USE music_store;
-SHOW CREATE TABLE album;
-SHOW INDEX FROM album;
-SELECT * FROM album ORDER BY album_id;
+USE ssm_emp;
+SHOW CREATE TABLE staff_info;
+SELECT * FROM staff_info ORDER BY staff_id;
 ```
 
-| 字段 | Java 类型 | 数据库类型 | 说明 |
-| --- | --- | --- | --- |
-| `album_id` | Integer | INT，自增主键 | 专辑编号 |
-| `title` | String | VARCHAR(100)，非空 | 名称 |
-| `artist` | String | VARCHAR(60)，非空 | 歌手，普通索引 |
-| `genre` | String | VARCHAR(30)，非空 | 风格 |
-| `price` | BigDecimal | DECIMAL(10,2)，非空 | 售价 |
-| `stock` | Integer | INT，非空，默认 0 | 库存 |
-| `release_date` | LocalDate | DATE，可空 | 发行日期 |
-| `status` | Integer | TINYINT，非空，默认 1 | 1 在售、0 下架 |
+初始化脚本使用 `IF NOT EXISTS`，按姓名、部门和入职日期补齐缺失样例，可重复执行，不覆盖员工已修改的工资等字段。已有同名表的结构不会自动迁移。原 `ssm_emp.emp`、`employee_db` 和音乐库均保留，项目查询改用 `ssm_emp.staff_info`。
 
-初始化脚本使用 `IF NOT EXISTS`，并按标题、歌手和发行日期补齐缺失的样例，不删除库、不覆盖已有专辑。新库应有 5 条样例；已有库可能有更多记录。表使用 InnoDB，才能支持事务回滚。已有表结构不由脚本自动迁移。
+## 员工字段
 
-### 1.2 Maven 配置
+| 数据库列 | Java 属性与类型 | 说明 |
+| --- | --- | --- |
+| `staff_id` | `empId` / Integer | 员工档案编号，自增主键 |
+| `full_name` | `name` / String | 姓名，VARCHAR(60)，非空 |
+| `department` | `department` / String | 部门，VARCHAR(60)，非空，普通索引 |
+| `gender` | `gender` / String | 性别，CHAR(1)，默认男 |
+| `monthly_salary` | `salary` / BigDecimal | 月薪，DECIMAL(10,2)，非空，默认 0.00 |
+| `job_title` | `post` / String | 职位名称，VARCHAR(60)，可空 |
+| `entry_date` | `hireDate` / LocalDate | 入职日期，可空 |
+| `work_status` | `status` / Integer | 1 在职、0 离职，默认 1；业务状态 |
+| `email` | `email` / String | 工作邮箱，VARCHAR(100)，可空，唯一索引 |
+| `office_location` | `officeLocation` / String | 办公地点，VARCHAR(60)，可空 |
 
-把 `docs/maven-settings-example.xml` 中的镜像与本地仓库设置合并到自己的 `settings.xml`，填写实际仓库路径。在 IDEA 的 `Settings → Build Tools → Maven` 中选择 Maven Wrapper，并指定同一份用户配置。不要直接用示例覆盖现有全局设置。
+## 演示入口
 
-```powershell
-.\mvnw.cmd -version
-.\mvnw.cmd test
-```
-
-首次执行需要联网下载依赖。只在依赖完整缓存、仓库 ID 一致时使用 `-o`。本机独立 Maven 与 Wrapper 的版本、settings.xml 可能不同，优先统一使用 Wrapper。`pom.xml` 固定资源、编译、测试插件版本，避免切换 Maven 后改变插件选择。
-
-### 1.3 Git 与 1.4 AI 插件
-
-项目已初始化 Git，无需重复执行 `git init`。查看与提交本人核对后的改动：
-
-```powershell
-git status --short
-git log --oneline
-git diff
-git add README.md pom.xml .gitignore sql src docs
-git commit -m "feat: 完善实验一任务一二三"
-```
-
-在 IDEA 插件市场安装通义灵码、GitHub Copilot 或 CodeGeeX，完成本人账号登录，开启补全并人工核对生成内容。项目文件不能证明插件已安装或账号已激活，需要本人检查。保留实际提示词、修改记录与运行截图。
-
-### 1.5 依赖与数据库连接
-
-| 依赖 | 版本 |
-| --- | --- |
-| MyBatis-Plus | 3.5.3.1（与指导书任务四一致） |
-| MyBatis | 3.5.10（由 MP 间接提供，不重复声明） |
-| Spring Core | 5.3.15（该 MP 版本泛型解析需要的工具库） |
-| MySQL Connector/J | 8.4.0 |
-| SLF4J | 2.0.13 |
-| Logback | 1.5.6 |
-| JUnit Jupiter | 5.10.2 |
-
-`jdbc.properties` 仅保存示例值。原开发配置已保存在 `src/main/resources/jdbc-local.properties`，该文件被 Git 忽略。新检出项目可以复制 `jdbc.properties` 为 `jdbc-local.properties`，再填写本机账号与密码。
-
-也可通过 IDEA Run Configuration 设置 `MUSIC_DB_URL`、`MUSIC_DB_USERNAME`、`MUSIC_DB_PASSWORD` 环境变量。覆盖优先级从高到低：JVM 系统属性 `jdbc.*` → `MUSIC_DB_*` 环境变量 → `jdbc-local.properties` → `jdbc.properties`。不要在截图或提交中展示口令。资源文件按 UTF-8 保存。
-
-本次实际运行遇到 `Public Key Retrieval is not allowed`，已在 localhost 实验连接中加入 `allowPublicKeyRetrieval=true`，允许驱动取得服务器 RSA 公钥。该连接配置用于本机实验；远程环境应配置 TLS 与服务器身份校验。参数含义见 [MySQL Connector/J 官方说明](https://dev.mysql.com/doc/connector-j/en/connector-j-connp-props-security.html)。
-
-## 任务二：MyBatis 配置与基础 CRUD
-
-`mybatis-config.xml` 加载连接属性，使用 JDBC 事务与连接池，注册实体别名及 Mapper 包。接口与 XML 同名，并保持相同包路径；XML 的 namespace 为 `com.music.mapper.AlbumMapper`。
-
-`AlbumMapper.xml` 中的 `albumMap` 显式映射 8 个字段，特别是 `album_id → albumId`、`release_date → releaseDate`。新增操作使用 `useGeneratedKeys` 回填主键；按 ID 查询与删除显式使用 `@Param`。可空日期绑定 `jdbcType=DATE`。
-
-在 IDEA 中运行 `com.music.MusicStoreDemo`，Program arguments 选择：
+`EmployeeDemo` 的 Program arguments：
 
 | 参数 | 演示内容 |
 | --- | --- |
-| 无参数或 `list` | 查询全部，输出专辑及 SQL 日志 |
+| 留空或 `list` | 查询全部员工 |
 | `crud` | 插入、主键回填、查询、整体更新、删除 |
-| `dynamic` | 批量插入、条件查询、trim、局部更新、分支查询、批量删除 |
+| `dynamic` | 批量插入、where/trim 多条件查询、局部更新、choose 分支、批量删除 |
 
-演示程序使用独立临时歌手标记，结束时回滚事务。正式业务需要保存修改时，在成功路径显式调用 `session.commit()`；异常路径回滚，始终关闭会话。SqlSessionFactory 共用，SqlSession 不跨线程共享。
+`MyBatisPlusDemo` 的 Program arguments：
 
-日志可见 `Preparing`（SQL）、`Parameters`（实参）、`Total`（查询条数）。增删改还可通过 Mapper 返回的影响行数验证。
-
-## 任务三：动态 SQL 与批量操作
-
-- `selectByCondition`：标题与歌手模糊匹配，风格与状态精确匹配；`where` 清除首个多余 AND。`selectByConditionWithTrim` 使用相同条件片段，验证 `trim` 的等效效果。
-- `updateSelective`：先验证正整数主键与至少一个更新字段，再通过 `set` 拼接非空字段。库存和状态为 0 时正常更新。null 表示不修改；要把发行日期置空，使用整体更新 `update`。
-- `insertBatch`、`deleteBatch`：空列表返回 0；null 列表、null 元素或无效删除主键抛出 `IllegalArgumentException`。校验通过后才调用 `*Rows` 映射入口，业务代码应调用带校验的方法。
-- `selectSmart`：标题非空时只按标题查；否则歌手非空时只按歌手查；两者都没有时查全部，包括下架专辑。它与 `if` 条件叠加的行为不同。
-
-所有用户值均使用 `#{}` 参数绑定；LIKE 中的 `%`、`_` 按 MySQL 通配符规则匹配。
-
-## 任务四：MyBatis-Plus 快速开发与分页
-
-### 4.1 引入 MP 并使用正确构建器
-
-将直接引入的 MyBatis 替换成 `com.baomidou:mybatis-plus:3.5.3.1`，由 MP 统一提供 MyBatis 核心。项目仍使用 Java 11 编译目标，无需 Spring Boot 或 Web 容器。
-
-`MyBatisUtil` 使用 `MybatisSqlSessionFactoryBuilder` 构建共用会话工厂，负责加载 XML、扫描 Mapper 并注入通用 SQL。只有继承 BaseMapper 而继续使用普通构建器，无法完成 MP SQL 注入。数据库连接属性、事务和原 XML Mapper 继续使用现有配置。
-
-本次运行发现 MP 3.5.3.1 在泛型解析时调用 `GenericTypeResolver`，首次构建出现 `NoClassDefFoundError: org/springframework/core/GenericTypeResolver`；显式补齐该版本对应的 Spring Core 5.3.15 后测试通过。这里仅使用工具类，不启动 Spring 容器。
-
-### 4.2 实体映射
-
-`Album` 增加 `@TableName("album")`、`@TableId(value = "album_id", type = IdType.AUTO)` 和 `@TableField("release_date")`。其他字段与列同名，无需额外注解。status 表示在售/下架，因此没有添加可选的 `@TableLogic`，下架专辑仍能按 ID 查询。
-
-### 4.3 通用 CRUD 与 XML 共存
-
-`AlbumPlusMapper extends BaseMapper<Album>`，没有对应的 XML，直接调用 `insert`、`selectById`、`updateById`、`deleteById`、`selectList` 等方法。原有 `AlbumMapper` 保留任务二、三的手写 SQL。
-
-两个 Mapper 操作同一张表，但使用不同 namespace，避免已有 XML 的 insert/selectById 等同名语句覆盖 MP 注入语句。验证用例还检查两者在同一事务中读到相同更新结果。
-
-### 4.4 条件构造器
-
-`AlbumQueries` 提供两种等效写法：
-
-```java
-mapper.selectList(AlbumQueries.queryWrapper("晴", "流行", new BigDecimal("30.00")));
-mapper.selectList(AlbumQueries.lambdaQueryWrapper("晴", "流行", new BigDecimal("30.00")));
-```
-
-标题模糊、风格精确、最低价格大于等于；null 或空白字符串忽略对应条件，始终只查询在售专辑。结果按价格降序、主键升序，价格相同时仍有稳定分页顺序。Lambda 通过实体 getter 引用列，两种写法都绑定输入值。
-
-### 4.5 分页配置与演示
-
-指导书中内部插件 property 缺少 value。本项目按 MP 3.5.3.1 的实际属性解析规则配置：
-
-```xml
-<plugins>
-    <plugin interceptor="com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor">
-        <property name="@page" value="com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor"/>
-        <property name="page:dbType" value="mysql"/>
-        <property name="page:overflow" value="false"/>
-        <property name="page:maxLimit" value="100"/>
-    </plugin>
-</plugins>
-```
-
-分页插件在配置中位于 typeAliases 之后、environments 之前。固定 MySQL 方言；单页最多 100 条，超出总页数返回空记录。已通过配置测试确认内部插件实际注册，数据库测试验证 COUNT、LIMIT 与偏移均生效。版本依据见 [3.5.3.1 插件源码](https://github.com/baomidou/mybatis-plus/blob/v3.5.3.1/mybatis-plus-extension/src/main/java/com/baomidou/mybatisplus/extension/plugins/MybatisPlusInterceptor.java)。
-
-```java
-Page<Album> result = mapper.selectPage(new Page<>(1, 3),
-        AlbumQueries.lambdaQueryWrapper(null, null, null));
-System.out.println("总记录数 = " + result.getTotal());
-System.out.println("总页数 = " + result.getPages());
-result.getRecords().forEach(System.out::println);
-```
-
-在 IDEA 运行 `com.music.MyBatisPlusDemo`，Program arguments 可选择：
-
-| 参数 | 内容 |
+| 参数 | 演示内容 |
 | --- | --- |
-| 无参数或 `all` | 依次演示通用 CRUD、两种条件查询及分页 |
-| `crud` | 主键回填、按 ID 查询、局部更新和删除 |
-| `query` | 标题含晴、流行、价格至少 30 元的两种构造器写法 |
-| `page` | 在售专辑第 1 页，每页 3 条，输出总记录数、总页数 |
+| 留空或 `all` | 通用 CRUD、两种条件构造器和分页 |
+| `crud` | BaseMapper 增删改查 |
+| `query` | 姓名含刘、性别男、工资至少 5000 元且在职 |
+| `page` | 在职员工第 1 页，每页 3 条，输出记录数与页数 |
 
-在初始化的 5 条样例中，分页应显示在售专辑 4 条、总页数 2、第一页 3 条；若已有数据发生变动，以实际查询为准。演示结束回滚临时记录。截图建议保留 MP 插入主键、两种查询结果、分页 COUNT/LIMIT SQL 和总数输出。
+新表中有陈嘉宁、刘子航、孙雨桐、周明远、许安然 5 条样例，其中 4 条在职；默认在职分页为 2 页，第一页 3 条。样例涵盖产品、技术、财务、运维、设计五个部门，以及上海、杭州、成都三处办公地点。邮箱使用示例域名。数据改动后以实际结果为准。
 
-## 任务五：日志排查与接口测试准备
+演示和数据库测试结束时回滚临时记录。正式业务需要保存修改时，在成功路径显式调用 `session.commit()`。SqlSessionFactory 共用，SqlSession 不跨线程共享。日志输出 `Preparing`、`Parameters`、`Total`；增删改还通过影响行数验证。
 
-详细记录见 [任务五实验记录](docs/task5-lab-notes.md)。故障演练只修改正式 XML 的内存副本，在测试目录中运行，输出预期异常、错误结果、修复结果及回滚日志：
+## 任务与代码
 
-```powershell
-.\mvnw.cmd -Pdatabase-tests "-Dtest=MyBatisFaultDrillTest" test
-```
+| 任务 | 文件与行为 |
+| --- | --- |
+| 一：环境与初始化 | `pom.xml`、`sql/init.sql`、Maven Wrapper、`docs/maven-settings-example.xml` |
+| 二：实体、XML 与 CRUD | `Employee.java`、`EmployeeMapper.java`、`EmployeeMapper.xml`、`EmployeeDemo.java` |
+| 三：动态 SQL | `if/where/trim/set/foreach/choose`，空批量返回 0，无效主键和空更新在执行前拒绝 |
+| 四：MyBatis-Plus | `EmployeePlusMapper`、`EmployeeQueries`、`MyBatisPlusDemo`、MySQL 分页插件 |
+| 五：排错与接口练习 | `MyBatisFaultDrillTest`、`docs/task5-lab-notes.md`、`docs/apifox/` |
 
-参数误写 tItle 的实际根因是 `ReflectionException`；错误列名导致 title 为 null；缺少 `useGeneratedKeys` 时插入成功但对象主键为 null。3 项演练均对正确写法进行了对照验证。
+Java 包名统一为 `com.employee`，Mapper XML 与接口位于相同包路径。实体用 `@TableName("staff_info")` 指定新表，通过 `@TableId` 和 `@TableField` 将现有 Java 属性映射到自定义列名。XML 的 `empMap` 覆盖全部 10 个字段。邮箱和办公地点支持普通插入、批量插入、整体更新和局部更新。
 
-ApiFox 请求材料位于 `docs/apifox/`。优先导入 `task5.postman_collection.json`，或使用 `task5.openapi.json` 导入接口定义。实际公开 GET 已返回 200 并通过 3 项响应断言；在本人桌面端创建 `mybatis-lab` 项目、发送请求并保存为用例的步骤见实验记录。项目目前没有业务 HTTP 服务，练习使用公开请求回显接口。
+`selectByCondition` 和 `selectByConditionWithTrim` 支持姓名/部门模糊查询、性别/状态精确查询；空条件查全部。`selectSmart` 优先按姓名精确查询，其次按部门查询，否则查全部。`updateSelective` 仅更新非空字段，工资和状态为 0 时仍参与更新；入职日期置空使用整体 `update`。
 
-本机 ApiFox 桌面安装器已通过哈希校验，但两次静默安装均在 System.dll 中以 `0xc0000005` 崩溃。客户端安装、项目创建和用例保存仍待完成；详细安装证据见 `docs/apifox/desktop-installation.json`。
+`EmployeeQueries` 提供 QueryWrapper 与 LambdaQueryWrapper 两种等效写法，支持姓名、性别和最低工资，始终只查在职员工，并按工资降序、主键升序排序。离职状态不作为逻辑删除标记，仍能按 ID 查询。
 
-AI 代码核查覆盖依赖版本、表名与字段、用户值绑定、结果映射、主键、分页、事务及命名规范；记录列明实际工程修正，供本人复核后写入实验报告。
+## 连接配置
 
-## 测试与验收
+覆盖优先级：JVM 属性 `jdbc.*` → 环境变量 `EMPLOYEE_DB_*` → `jdbc-local.properties` → `jdbc.properties`。支持 `EMPLOYEE_DB_URL`、`EMPLOYEE_DB_USERNAME`、`EMPLOYEE_DB_PASSWORD`。本地口令文件被 Git 忽略。
 
-默认运行 13 项 SQL/参数和 MP 配置测试，无需启动 MySQL：
+默认 URL 指向 `localhost:3306/ssm_emp`，启用本机实验用的 `allowPublicKeyRetrieval=true`。资源文件按 UTF-8 保存。IDEA 的 Database 面板可添加 MySQL 数据源，Host 填 `localhost`、Port 填 `3306`、Database 填 `ssm_emp`，账号密码与 `jdbc-local.properties` 一致，点击 Test Connection 验证。
+
+依赖保持课程版本：MP 3.5.3.1（提供 MyBatis 3.5.10）、Spring Core 5.3.15、MySQL Connector/J 8.4.0、SLF4J 2.0.13、Logback 1.5.6、JUnit Jupiter 5.10.2。`MyBatisUtil` 使用 `MybatisSqlSessionFactoryBuilder`，兼容原 XML 和 BaseMapper。
+
+## 测试
+
+默认 16 项配置、SQL 与参数校验测试无需连接数据库：
 
 ```powershell
 .\mvnw.cmd test
 ```
 
-数据库初始化并配置连接后，运行全部测试（13 项无数据库测试 + 21 项 MySQL 测试，共 34 项）：
+执行 `sql/init.sql` 和 `sql/dept_emp_init.sql` 并配置两个数据库连接后，运行全部 46 项测试：
 
 ```powershell
 .\mvnw.cmd -Pdatabase-tests test
 ```
 
-MySQL 测试先核实 album 使用 InnoDB，各用例自行插入独立标记数据，结束时回滚，不依赖固定样例或删除别人的数据。回滚不恢复 MySQL 自增序号，因此 ID 出现间隔是正常现象。IDEA 直接运行 `AlbumMapperTest` 或 `AlbumPlusMapperTest` 也会连接数据库。
+已安装 Maven 时也可使用 `mvn test`、`mvn -Pdatabase-tests test`。首次使用 Wrapper 需要下载 Maven 3.9.6；依赖也需要联网下载。仅在依赖完整缓存且仓库 ID 匹配时使用 `-o`，不要为了离线运行直接覆盖全局 settings.xml。
 
-测试报告位于 `target/surefire-reports/`。默认测试通过只说明配置和 SQL 生成正常；数据库测试通过才说明连接、实际 SQL 执行与结果映射已验证。
+数据库测试验证字段映射、主键回填、CRUD、动态 SQL、分页边界和事务回滚；各用例只操作独立标记的数据。MySQL 的自增序号在回滚后不会恢复，编号出现间隔是正常现象。报告位于 `target/surefire-reports/`。
 
-2026-10-14 本机验收：20 项测试全部通过；`crud`、`dynamic` 演示均正常。初始化脚本已在独立临时数据库中连续执行 3 次，验证样例不重复、自建记录保留、修改过的样例价格不被覆盖，验收后删除了该临时数据库。
+2026-10-15 已连接本机 MySQL 8.0.44，创建 `ssm_emp.staff_info`，全部 34 项测试通过。`EmployeeDemo list` 实际查询得到 5 条新样例及邮箱、办公地点；重复执行初始化脚本后仍为 5 条。报告位于 `target/surefire-reports/`。测试使用本机缓存与 `target/employee-verification-settings.xml`，全局 Maven 配置未修改。
 
-2026-10-14 加入任务四后，31 项测试全部通过，包括原有 20 项与新增 11 项。任务四验证通用 CRUD、字段映射、两种构造器结果一致、价格并列排序、每页 3 条的首页/中间页/末页、空结果、页码溢出及 XML 与 MP 共存。完整 MP 演示也已运行，实际分页输出总记录数 4、总页数 2、首页 3 条；依赖树确认 MyBatis 核心仅有 3.5.10 一个版本。
+任务五单独运行：
 
-2026-10-14 加入任务五后，34 项测试全部通过，3 项故障演练已实际运行并记录修复结果。公开 GET 请求回显参数和请求头正确，导入集合中的 3 项断言对实际响应执行通过。桌面端用例保存以本人 ApiFox 操作为准。
+```powershell
+.\mvnw.cmd -Pdatabase-tests "-Dtest=MyBatisFaultDrillTest" test
+```
 
-## 排错与实验记录
+该演练在 XML 内存副本中复现 `name/nAme` 参数拼写错误、`missing_name` 列映射错误和主键回填缺失，并对照验证修复；日志位于 `target/task5/fault-drills.log`。ApiFox 材料练习公开 GET 请求，项目尚未提供员工 HTTP 接口。
 
-| 现象 | 排查方法 |
+## 常见问题
+
+| 现象 | 处理 |
 | --- | --- |
-| Connection refused / Communications link failure | 检查 MySQL 服务、端口和连接 URL |
-| Access denied | 检查本地文件或环境变量中的账号与口令 |
-| Public Key Retrieval is not allowed | 本机实验核对 `allowPublicKeyRetrieval=true`，远程环境配置 TLS |
-| Unknown database / Table doesn't exist | 在 MySQL 客户端执行初始化脚本，核对连接的数据库 |
-| Invalid bound statement / Parameter not found | 核对 namespace、接口方法、XML id、资源路径及 `@Param` 名称 |
-| 离线依赖 present but unavailable | 核对 Maven 配置与缓存来源仓库 ID；依赖未缓存时联网运行 |
-| GenericTypeResolver 类找不到 | MP 3.5.3.1 需要显式补充 Spring Core，刷新 Maven 依赖 |
-| BaseMapper 方法 Invalid bound statement | 使用 MybatisSqlSessionFactoryBuilder，核对包扫描和实体注解 |
-| 分页返回全量数据 | 检查 MybatisPlusInterceptor 内部是否注册 PaginationInnerInterceptor，而非只注册空的外部插件 |
-| JDK 17 下 ReflectLambdaMeta 的 module 访问 WARN | 本机使用该教学版本时出现此警告，Lambda 查询、分页及全部测试仍通过；不要将 WARN 与测试失败混淆 |
-
-本次核对发现并修正了空更新/空批量生成无效 SQL、测试提前提交导致失败后遗留数据、分支默认只查在售与指导书不一致、初始化直接删库等问题。记录本人实际出现的报错及解决过程，不将这些代码检查发现伪写成个人运行经历。
-
-本机离线验收还遇到 Surefire 依赖来自 `alimaven`、Wrapper 使用 `central` 导致缓存不可用的问题。先使用临时配置登记两个缓存来源完成离线验证，随后联网补齐缓存；标准命令 `.\mvnw.cmd -Pdatabase-tests test` 也已验证通过，未改动全局 Maven 配置。
-
-实验报告可据此整理任务步骤，但仍需补充本人环境版本、AI 插件配置、真实交互记录和截图：初始化查询、SQL 与参数日志、CRUD/动态 SQL 演示、JUnit 测试结果。插件登录、截图与报告签名需本人完成。
+| 部署源 `war exploded` 无效 | 将运行配置切换到 `EmployeeDemo` |
+| Connection refused / Communications link failure | 核对 MySQL 服务、端口和 URL |
+| Access denied | 核对本地账号和密码 |
+| Unknown database / Table doesn't exist | 执行 `sql/init.sql`，确认连接 `ssm_emp` |
+| Invalid bound statement | 核对接口、XML、namespace、扫描包及资源路径 |
+| 离线依赖不可用 | 检查 Maven settings 和缓存来源仓库 ID，必要时联网补齐 |
+| GenericTypeResolver 类找不到 | 重新加载 Maven，确认 Spring Core 依赖 |
+| 分页返回全量数据 | 核对 PaginationInnerInterceptor 已注册 |

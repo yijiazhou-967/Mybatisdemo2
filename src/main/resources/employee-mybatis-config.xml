@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC
+        "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+    <!-- 数据库连接四要素外置到 jdbc.properties，避免在 XML 中硬编码 -->
+    <properties resource="jdbc.properties"/>
+
+    <settings>
+        <!-- 下划线列自动映射到驼峰属性：office_location -> officeLocation -->
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+        <!-- 日志实现交给 SLF4J，由 Logback 输出 SQL 与参数绑定日志 -->
+        <setting name="logImpl" value="SLF4J"/>
+    </settings>
+
+    <!-- 实体类别名：映射文件中可直接写 Employee，无需全限定名 -->
+    <typeAliases>
+        <package name="com.employee.entity"/>
+    </typeAliases>
+
+    <!-- 任务四：3.5.3.1 使用 @别名 注册内部拦截器，别名:属性 设置参数 -->
+    <plugins>
+        <plugin interceptor="com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor">
+            <property name="@page" value="com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor"/>
+            <property name="page:dbType" value="mysql"/>
+            <property name="page:overflow" value="false"/>
+            <property name="page:maxLimit" value="100"/>
+        </plugin>
+    </plugins>
+
+    <environments default="dev">
+        <environment id="dev">
+            <transactionManager type="JDBC"/>
+            <dataSource type="POOLED">
+                <property name="driver" value="${jdbc.driver}"/>
+                <property name="url" value="${jdbc.url}"/>
+                <property name="username" value="${jdbc.username}"/>
+                <property name="password" value="${jdbc.password}"/>
+            </dataSource>
+        </environment>
+    </environments>
+
+    <!-- 扫描 mapper 包：接口 + 同包名映射文件 -->
+    <mappers>
+        <package name="com.employee.mapper"/>
+    </mappers>
+</configuration>
