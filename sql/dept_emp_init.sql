@@ -54,5 +54,38 @@ FROM (
 ) AS seed
 WHERE NOT EXISTS (SELECT 1 FROM emp e WHERE e.empno = seed.empno);
 
+-- 将原始教学样例改为中文，只转换匹配原值的字段，保留编号和自定义内容。
+UPDATE dept d
+JOIN (
+    SELECT 1 AS id, 'ACCOUNTING' AS old_name, '财务部' AS new_name, 'NEW YORK' AS old_loc, '纽约' AS new_loc
+    UNION ALL SELECT 2, 'RESEARCH', '研发部', 'DALLAS', '达拉斯'
+    UNION ALL SELECT 3, 'SALES', '销售部', 'CHICAGO', '芝加哥'
+    UNION ALL SELECT 4, 'OPERATIONS', '运营部', 'BOSTON', '波士顿'
+) names ON names.id = d.deptno
+SET d.dname = CASE WHEN d.dname = names.old_name THEN names.new_name ELSE d.dname END,
+    d.loc = CASE WHEN d.loc = names.old_loc THEN names.new_loc ELSE d.loc END;
+
+UPDATE emp e
+JOIN (
+    SELECT 1 AS id, 'SMITH' AS old_name, '陈明' AS new_name
+    UNION ALL SELECT 2, 'ALLEN', '李华'
+    UNION ALL SELECT 3, 'WARD', '王磊'
+    UNION ALL SELECT 4, 'JONES', '周杰'
+    UNION ALL SELECT 5, 'MARTIN', '刘洋'
+    UNION ALL SELECT 6, 'BLAKE', '赵伟'
+    UNION ALL SELECT 7, 'CLARK', '孙宁'
+    UNION ALL SELECT 8, 'SCOTT', '吴晨'
+    UNION ALL SELECT 9, 'KING', '郑峰'
+    UNION ALL SELECT 10, 'TURNER', '冯宇'
+    UNION ALL SELECT 11, 'ADAMS', '何涛'
+    UNION ALL SELECT 12, 'JAMES', '高远'
+    UNION ALL SELECT 13, 'FORD', '林硕'
+    UNION ALL SELECT 14, 'MILLER', '徐帆'
+) names ON names.id = e.empno
+SET e.ename = CASE WHEN e.ename = names.old_name THEN names.new_name ELSE e.ename END,
+    e.job = CASE e.job WHEN 'CLERK' THEN '行政专员' WHEN 'SALESMAN' THEN '销售专员'
+                      WHEN 'MANAGER' THEN '部门经理' WHEN 'ANALYST' THEN '数据分析师'
+                      WHEN 'PRESIDENT' THEN '总经理' ELSE e.job END;
+
 SELECT deptno, dname, loc, deleted FROM dept ORDER BY deptno;
 SELECT empno, ename, job, deptno, sal, deleted FROM emp ORDER BY empno;

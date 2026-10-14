@@ -21,9 +21,13 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.function.Supplier;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 /** 交互式关联查询，每次查询使用独立会话，结果读取后立即关闭。 */
 public final class RelationshipConsole {
+    private static final DateTimeFormatter CHINESE_DATE = DateTimeFormatter.ofPattern("yyyy年MM月dd日");
     private final Supplier<SqlSession> sessions;
 
     public RelationshipConsole(Supplier<SqlSession> sessions) {
@@ -88,7 +92,6 @@ public final class RelationshipConsole {
                 query(session, choice, id, out);
             } catch (PersistenceException | IllegalStateException ex) {
                 out.println("查询失败，请检查 MySQL 和 db-local.properties；首次运行请先执行 query.cmd --init。");
-                out.println("错误类型：" + ex.getClass().getSimpleName());
             }
         }
     }
@@ -134,7 +137,7 @@ public final class RelationshipConsole {
                 printEmployee(holder, out);
                 EmployeeCard card = holder.getCard();
                 if (card == null) out.println("该员工尚未办理工牌。");
-                else out.printf("工牌号：%s | 发放日期：%s%n", card.getCardNumber(), card.getIssuedOn());
+                else out.printf("工牌号：%s | 发放日期：%s%n", card.getCardNumber(), dateText(card.getIssuedOn()));
                 break;
             case "4":
                 Emp employee = employees.selectByIdWithDept(id);
@@ -165,16 +168,21 @@ public final class RelationshipConsole {
 
     private void printEmployee(Emp emp, PrintWriter out) {
         out.printf("员工编号：%d | 姓名：%s | 职位：%s | 薪水：%s%n",
-                emp.getEmpno(), emp.getEname(), emp.getJob(), emp.getSal());
+                emp.getEmpno(), emp.getEname(), emp.getJob() == null ? "未填写" : emp.getJob(),
+                emp.getSal() == null ? "未填写" : String.format(Locale.ROOT, "%.2f 元", emp.getSal()));
     }
 
     private void printProject(Project project, PrintWriter out) {
         out.printf("项目编号：%d | 编码：%s | 项目：%s | 启动日期：%s%n",
                 project.getProjectId(), project.getProjectCode(), project.getTitle(),
-                project.getStartDate() == null ? "未填写" : project.getStartDate());
+                dateText(project.getStartDate()));
     }
 
     private void printDepartment(Dept dept, PrintWriter out) {
         out.printf("部门编号：%d | 部门：%s | 地点：%s%n", dept.getDeptno(), dept.getDname(), dept.getLoc());
+    }
+
+    private String dateText(LocalDate date) {
+        return date == null ? "未填写" : CHINESE_DATE.format(date);
     }
 }
