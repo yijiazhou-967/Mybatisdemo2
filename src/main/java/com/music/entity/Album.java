@@ -1,5 +1,10 @@
 package com.music.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -7,9 +12,11 @@ import java.time.LocalDate;
  * 音乐专辑实体，与数据库表 music_store.album 一一对应。
  * 字段采用驼峰命名，配合全局配置 mapUnderscoreToCamelCase 自动映射下划线列。
  */
+@TableName("album")
 public class Album {
 
     /** 专辑编号（主键，自增） */
+    @TableId(value = "album_id", type = IdType.AUTO)
     private Integer albumId;
     /** 专辑名称 */
     private String title;
@@ -22,8 +29,9 @@ public class Album {
     /** 库存数量 */
     private Integer stock;
     /** 发行日期 */
+    @TableField("release_date")
     private LocalDate releaseDate;
-    /** 状态：1 在售 / 0 下架 */
+    /** 状态：1 在售 / 0 下架；属于业务状态，不作为逻辑删除标记 */
     private Integer status;
 
     /** 无参构造：MyBatis 结果映射实例化对象所必需 */

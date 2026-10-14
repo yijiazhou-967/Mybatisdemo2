@@ -3,7 +3,7 @@ package com.music.util;
 import org.apache.ibatis.io.Resources;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
-import org.apache.ibatis.session.SqlSessionFactoryBuilder;
+import com.baomidou.mybatisplus.core.MybatisSqlSessionFactoryBuilder;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,7 +41,8 @@ public final class MyBatisUtil {
                     overrides.setProperty("jdbc." + key, system);
                 }
             }
-            SQL_SESSION_FACTORY = new SqlSessionFactoryBuilder().build(in, overrides);
+            // MP 构建器负责注入 BaseMapper SQL，同时加载原有 XML Mapper。
+            SQL_SESSION_FACTORY = new MybatisSqlSessionFactoryBuilder().build(in, overrides);
         } catch (IOException e) {
             throw new RuntimeException("加载 mybatis-config.xml 失败", e);
         }

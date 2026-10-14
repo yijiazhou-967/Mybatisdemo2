@@ -1,6 +1,6 @@
-# 实验一 · 任务一、二、三：MyBatis 环境搭建、CRUD 与动态 SQL
+# 实验一 · 任务一至四：MyBatis、动态 SQL、MyBatis-Plus 与分页
 
-课程：《JAVA框架技术（一）》（AI 赋能版）。沿用本项目的音乐专辑业务，数据库为 `music_store`、数据表为 `album`，对应指导书的员工示例。任务四的 MyBatis-Plus 与分页不在本次范围。
+课程：《JAVA框架技术（一）》（AI 赋能版）。沿用本项目的音乐专辑业务，数据库为 `music_store`、数据表为 `album`，对应指导书的员工示例。已实现任务一至四，保留手写 XML 与 MyBatis-Plus 两种持久层写法。
 
 ## 任务与文件对应
 
@@ -21,6 +21,11 @@
 | 3.2 动态更新 | `set`，仅更新非空字段，拒绝空更新 | `updateSelective` |
 | 3.3 批量操作 | `foreach`、`@Param`、空列表处理 | `insertBatch`、`deleteBatch` |
 | 3.4 分支查询 | 标题优先，其次歌手，无条件查全部 | `selectSmart` |
+| 4.1 MP 依赖与配置 | MP 3.5.3.1 提供 MyBatis 核心，使用 MP 会话工厂构建器 | `pom.xml`、`MyBatisUtil.java` |
+| 4.2 实体注解 | 表名、自增主键、日期字段 | `Album.java` |
+| 4.3 通用 CRUD | 继承 BaseMapper，无需新建 XML | `AlbumPlusMapper.java` |
+| 4.4 条件构造器 | QueryWrapper 与 LambdaQueryWrapper 的多条件、范围和排序 | `AlbumQueries.java` |
+| 4.5 分页 | MySQL 分页插件，每页 3 条、总数和总页数 | `mybatis-config.xml`、`MyBatisPlusDemo.java` |
 
 ## 任务一：环境搭建与项目初始化
 
@@ -84,7 +89,9 @@ git commit -m "feat: 完善实验一任务一二三"
 
 | 依赖 | 版本 |
 | --- | --- |
-| MyBatis | 3.5.16 |
+| MyBatis-Plus | 3.5.3.1（与指导书任务四一致） |
+| MyBatis | 3.5.10（由 MP 间接提供，不重复声明） |
+| Spring Core | 5.3.15（该 MP 版本泛型解析需要的工具库） |
 | MySQL Connector/J | 8.4.0 |
 | SLF4J | 2.0.13 |
 | Logback | 1.5.6 |
@@ -123,25 +130,94 @@ git commit -m "feat: 完善实验一任务一二三"
 
 所有用户值均使用 `#{}` 参数绑定；LIKE 中的 `%`、`_` 按 MySQL 通配符规则匹配。
 
+## 任务四：MyBatis-Plus 快速开发与分页
+
+### 4.1 引入 MP 并使用正确构建器
+
+将直接引入的 MyBatis 替换成 `com.baomidou:mybatis-plus:3.5.3.1`，由 MP 统一提供 MyBatis 核心。项目仍使用 Java 11 编译目标，无需 Spring Boot 或 Web 容器。
+
+`MyBatisUtil` 使用 `MybatisSqlSessionFactoryBuilder` 构建共用会话工厂，负责加载 XML、扫描 Mapper 并注入通用 SQL。只有继承 BaseMapper 而继续使用普通构建器，无法完成 MP SQL 注入。数据库连接属性、事务和原 XML Mapper 继续使用现有配置。
+
+本次运行发现 MP 3.5.3.1 在泛型解析时调用 `GenericTypeResolver`，首次构建出现 `NoClassDefFoundError: org/springframework/core/GenericTypeResolver`；显式补齐该版本对应的 Spring Core 5.3.15 后测试通过。这里仅使用工具类，不启动 Spring 容器。
+
+### 4.2 实体映射
+
+`Album` 增加 `@TableName("album")`、`@TableId(value = "album_id", type = IdType.AUTO)` 和 `@TableField("release_date")`。其他字段与列同名，无需额外注解。status 表示在售/下架，因此没有添加可选的 `@TableLogic`，下架专辑仍能按 ID 查询。
+
+### 4.3 通用 CRUD 与 XML 共存
+
+`AlbumPlusMapper extends BaseMapper<Album>`，没有对应的 XML，直接调用 `insert`、`selectById`、`updateById`、`deleteById`、`selectList` 等方法。原有 `AlbumMapper` 保留任务二、三的手写 SQL。
+
+两个 Mapper 操作同一张表，但使用不同 namespace，避免已有 XML 的 insert/selectById 等同名语句覆盖 MP 注入语句。验证用例还检查两者在同一事务中读到相同更新结果。
+
+### 4.4 条件构造器
+
+`AlbumQueries` 提供两种等效写法：
+
+```java
+mapper.selectList(AlbumQueries.queryWrapper("晴", "流行", new BigDecimal("30.00")));
+mapper.selectList(AlbumQueries.lambdaQueryWrapper("晴", "流行", new BigDecimal("30.00")));
+```
+
+标题模糊、风格精确、最低价格大于等于；null 或空白字符串忽略对应条件，始终只查询在售专辑。结果按价格降序、主键升序，价格相同时仍有稳定分页顺序。Lambda 通过实体 getter 引用列，两种写法都绑定输入值。
+
+### 4.5 分页配置与演示
+
+指导书中内部插件 property 缺少 value。本项目按 MP 3.5.3.1 的实际属性解析规则配置：
+
+```xml
+<plugins>
+    <plugin interceptor="com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor">
+        <property name="@page" value="com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor"/>
+        <property name="page:dbType" value="mysql"/>
+        <property name="page:overflow" value="false"/>
+        <property name="page:maxLimit" value="100"/>
+    </plugin>
+</plugins>
+```
+
+分页插件在配置中位于 typeAliases 之后、environments 之前。固定 MySQL 方言；单页最多 100 条，超出总页数返回空记录。已通过配置测试确认内部插件实际注册，数据库测试验证 COUNT、LIMIT 与偏移均生效。版本依据见 [3.5.3.1 插件源码](https://github.com/baomidou/mybatis-plus/blob/v3.5.3.1/mybatis-plus-extension/src/main/java/com/baomidou/mybatisplus/extension/plugins/MybatisPlusInterceptor.java)。
+
+```java
+Page<Album> result = mapper.selectPage(new Page<>(1, 3),
+        AlbumQueries.lambdaQueryWrapper(null, null, null));
+System.out.println("总记录数 = " + result.getTotal());
+System.out.println("总页数 = " + result.getPages());
+result.getRecords().forEach(System.out::println);
+```
+
+在 IDEA 运行 `com.music.MyBatisPlusDemo`，Program arguments 可选择：
+
+| 参数 | 内容 |
+| --- | --- |
+| 无参数或 `all` | 依次演示通用 CRUD、两种条件查询及分页 |
+| `crud` | 主键回填、按 ID 查询、局部更新和删除 |
+| `query` | 标题含晴、流行、价格至少 30 元的两种构造器写法 |
+| `page` | 在售专辑第 1 页，每页 3 条，输出总记录数、总页数 |
+
+在初始化的 5 条样例中，分页应显示在售专辑 4 条、总页数 2、第一页 3 条；若已有数据发生变动，以实际查询为准。演示结束回滚临时记录。截图建议保留 MP 插入主键、两种查询结果、分页 COUNT/LIMIT SQL 和总数输出。
+
 ## 测试与验收
 
-默认运行 9 项 SQL/参数测试，无需启动 MySQL：
+默认运行 13 项 SQL/参数和 MP 配置测试，无需启动 MySQL：
 
 ```powershell
 .\mvnw.cmd test
 ```
 
-数据库初始化并配置连接后，运行全部测试（9 项 SQL 测试 + 11 项 MySQL 测试）：
+数据库初始化并配置连接后，运行全部测试（13 项无数据库测试 + 18 项 MySQL 测试）：
 
 ```powershell
 .\mvnw.cmd -Pdatabase-tests test
 ```
 
-MySQL 测试先核实 album 使用 InnoDB，各用例自行插入独立标记数据，结束时回滚，不依赖固定样例或删除别人的数据。回滚不恢复 MySQL 自增序号，因此 ID 出现间隔是正常现象。IDEA 直接运行 `AlbumMapperTest` 也会连接数据库。
+MySQL 测试先核实 album 使用 InnoDB，各用例自行插入独立标记数据，结束时回滚，不依赖固定样例或删除别人的数据。回滚不恢复 MySQL 自增序号，因此 ID 出现间隔是正常现象。IDEA 直接运行 `AlbumMapperTest` 或 `AlbumPlusMapperTest` 也会连接数据库。
 
 测试报告位于 `target/surefire-reports/`。默认测试通过只说明配置和 SQL 生成正常；数据库测试通过才说明连接、实际 SQL 执行与结果映射已验证。
 
 2026-10-14 本机验收：20 项测试全部通过；`crud`、`dynamic` 演示均正常。初始化脚本已在独立临时数据库中连续执行 3 次，验证样例不重复、自建记录保留、修改过的样例价格不被覆盖，验收后删除了该临时数据库。
+
+2026-10-14 加入任务四后，31 项测试全部通过，包括原有 20 项与新增 11 项。任务四验证通用 CRUD、字段映射、两种构造器结果一致、价格并列排序、每页 3 条的首页/中间页/末页、空结果、页码溢出及 XML 与 MP 共存。完整 MP 演示也已运行，实际分页输出总记录数 4、总页数 2、首页 3 条；依赖树确认 MyBatis 核心仅有 3.5.10 一个版本。
 
 ## 排错与实验记录
 
@@ -153,6 +229,10 @@ MySQL 测试先核实 album 使用 InnoDB，各用例自行插入独立标记数
 | Unknown database / Table doesn't exist | 在 MySQL 客户端执行初始化脚本，核对连接的数据库 |
 | Invalid bound statement / Parameter not found | 核对 namespace、接口方法、XML id、资源路径及 `@Param` 名称 |
 | 离线依赖 present but unavailable | 核对 Maven 配置与缓存来源仓库 ID；依赖未缓存时联网运行 |
+| GenericTypeResolver 类找不到 | MP 3.5.3.1 需要显式补充 Spring Core，刷新 Maven 依赖 |
+| BaseMapper 方法 Invalid bound statement | 使用 MybatisSqlSessionFactoryBuilder，核对包扫描和实体注解 |
+| 分页返回全量数据 | 检查 MybatisPlusInterceptor 内部是否注册 PaginationInnerInterceptor，而非只注册空的外部插件 |
+| JDK 17 下 ReflectLambdaMeta 的 module 访问 WARN | 本机使用该教学版本时出现此警告，Lambda 查询、分页及全部测试仍通过；不要将 WARN 与测试失败混淆 |
 
 本次核对发现并修正了空更新/空批量生成无效 SQL、测试提前提交导致失败后遗留数据、分支默认只查在售与指导书不一致、初始化直接删库等问题。记录本人实际出现的报错及解决过程，不将这些代码检查发现伪写成个人运行经历。
 

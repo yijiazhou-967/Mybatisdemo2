@@ -19,6 +19,16 @@
         <package name="com.music.entity"/>
     </typeAliases>
 
+    <!-- 任务四：3.5.3.1 使用 @别名 注册内部拦截器，别名:属性 设置参数 -->
+    <plugins>
+        <plugin interceptor="com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor">
+            <property name="@page" value="com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor"/>
+            <property name="page:dbType" value="mysql"/>
+            <property name="page:overflow" value="false"/>
+            <property name="page:maxLimit" value="100"/>
+        </plugin>
+    </plugins>
+
     <environments default="dev">
         <environment id="dev">
             <transactionManager type="JDBC"/>
