@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 仅由 query.cmd 使用，保留 central/alimaven 缓存来源，不修改全局 Maven 配置。 -->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0">
+    <profiles>
+        <profile>
+            <id>query-repositories</id>
+            <repositories>
+                <repository><id>central</id><url>https://repo.maven.apache.org/maven2</url></repository>
+                <repository><id>alimaven</id><url>https://maven.aliyun.com/repository/public</url></repository>
+            </repositories>
+            <pluginRepositories>
+                <pluginRepository><id>central</id><url>https://repo.maven.apache.org/maven2</url></pluginRepository>
+                <pluginRepository><id>alimaven</id><url>https://maven.aliyun.com/repository/public</url></pluginRepository>
+            </pluginRepositories>
+        </profile>
+    </profiles>
+    <activeProfiles><activeProfile>query-repositories</activeProfile></activeProfiles>
+</settings>

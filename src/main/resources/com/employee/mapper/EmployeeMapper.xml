@@ -75,7 +75,7 @@
             AND full_name LIKE CONCAT('%', #{name}, '%')
         </if>
         <if test="department != null and department != ''">
-            AND department LIKE CONCAT('%', #{department}, '%')
+            AND department = #{department}
         </if>
         <if test="gender != null and gender != ''">
             AND gender = #{gender}
@@ -99,6 +99,33 @@
             <include refid="conditionFilters"/>
         </trim>
         ORDER BY staff_id
+    </select>
+
+    <!-- 同一查询模型可用于 XML 和 MP，条件片段供 where/trim 共用。 -->
+    <sql id="directoryFilters">
+        <if test="q.department != null">AND department = #{q.department}</if>
+        <if test="q.status != null">AND work_status = #{q.status}</if>
+        <if test="q.minimumSalary != null">AND monthly_salary &gt;= #{q.minimumSalary}</if>
+        <if test="q.maximumSalary != null">AND monthly_salary &lt;= #{q.maximumSalary}</if>
+        <if test="q.hiredFrom != null">AND entry_date &gt;= #{q.hiredFrom}</if>
+        <if test="q.hiredThrough != null">AND entry_date &lt;= #{q.hiredThrough}</if>
+        <if test="q.officeLocation != null">AND office_location = #{q.officeLocation}</if>
+        <if test="q.gender != null">AND gender = #{q.gender}</if>
+        <if test="q.name != null">AND full_name LIKE CONCAT('%', #{q.name}, '%')</if>
+    </sql>
+
+    <select id="searchRows" resultMap="empMap">
+        SELECT <include refid="allColumns"/> FROM staff_info
+        <where><include refid="directoryFilters"/></where>
+        ORDER BY monthly_salary DESC, staff_id ASC
+    </select>
+
+    <select id="searchTrimRows" resultMap="empMap">
+        SELECT <include refid="allColumns"/> FROM staff_info
+        <trim prefix="WHERE" prefixOverrides="AND |OR ">
+            <include refid="directoryFilters"/>
+        </trim>
+        ORDER BY monthly_salary DESC, staff_id ASC
     </select>
 
     <!-- 3.2 动态更新：set 标签只更新非空字段，自动去除末尾多余逗号 -->

@@ -1,6 +1,7 @@
 package com.employee.mapper;
 
 import com.employee.entity.Employee;
+import com.employee.query.EmployeeSearch;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -30,11 +31,24 @@ public interface EmployeeMapper {
 
     // ============ 任务三：动态 SQL ============
 
-    /** 多条件模糊查询：姓名/部门模糊、性别精确、状态精确，条件可为空 */
+    /** 姓名模糊，部门/性别/状态精确，条件可为空 */
     List<Employee> selectByCondition(Employee condition);
 
     /** 与 where 写法等效的 trim 演示，便于核对结果 */
     List<Employee> selectByConditionWithTrim(Employee condition);
+
+    /** 独立查询模型：加入工资区间、入职日期区间及办公地点。 */
+    default List<Employee> search(EmployeeSearch criteria) {
+        return searchRows((criteria == null ? new EmployeeSearch() : criteria).validate());
+    }
+
+    default List<Employee> searchWithTrim(EmployeeSearch criteria) {
+        return searchTrimRows((criteria == null ? new EmployeeSearch() : criteria).validate());
+    }
+
+    List<Employee> searchRows(@Param("q") EmployeeSearch criteria);
+
+    List<Employee> searchTrimRows(@Param("q") EmployeeSearch criteria);
 
     /** 动态更新：仅更新非空字段（set 标签） */
     default int updateSelective(Employee emp) {

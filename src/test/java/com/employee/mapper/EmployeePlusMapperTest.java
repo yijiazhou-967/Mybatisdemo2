@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.employee.entity.Employee;
 import com.employee.query.EmployeeQueries;
+import com.employee.query.EmployeeSearch;
 import com.employee.util.MyBatisUtil;
 import org.apache.ibatis.session.SqlSession;
 import org.junit.jupiter.api.AfterEach;
@@ -73,6 +74,47 @@ class EmployeePlusMapperTest {
 
     private LambdaQueryWrapper<Employee> ownRecords() {
         return EmployeeQueries.lambdaQueryWrapper(null, null, null).eq(Employee::getDepartment, marker);
+    }
+
+    @Test
+    void searchRangesMatchAcrossXmlAndBothWrappers() {
+        Employee lower = insert("下界", "30.00", "男", 0);
+        Employee upper = insert("上界", "40.00", "男", 0);
+        insert("低于下界", "29.99", "男", 0);
+        insert("在职", "35.00", "男", 1);
+        Employee wrongOffice = insert("不同地点", "35.00", "男", 0);
+        wrongOffice.setOfficeLocation("成都办公室");
+        mapper.updateById(wrongOffice);
+        Employee wrongDate = insert("不同日期", "35.00", "男", 0);
+        wrongDate.setHireDate(LocalDate.of(2023, 12, 31));
+        mapper.updateById(wrongDate);
+        EmployeeSearch q = new EmployeeSearch().name(marker).department(marker).gender("男").status(0)
+                .office("杭州研发中心").salaryBetween(new BigDecimal("30"), new BigDecimal("40"))
+                .hiredBetween(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 1));
+        List<Integer> expected = Arrays.asList(upper.getEmpId(), lower.getEmpId());
+        EmployeeMapper xml = session.getMapper(EmployeeMapper.class);
+        assertEquals(expected, ids(xml.search(q)));
+        assertEquals(expected, ids(xml.searchWithTrim(q)));
+        assertEquals(expected, ids(mapper.selectList(EmployeeQueries.queryWrapper(q))));
+        assertEquals(expected, ids(mapper.selectList(EmployeeQueries.lambdaQueryWrapper(q))));
+        Page<Employee> page = mapper.findPage(q, 2, 1);
+        assertEquals(2, page.getTotal());
+        assertEquals(2, page.getPages());
+        assertEquals(Arrays.asList(lower.getEmpId()), ids(page.getRecords()));
+        assertTrue(mapper.findPage(q, 3, 1).getRecords().isEmpty());
+    }
+
+    @Test
+    void departmentUsesExactMatchAndNameRemainsFuzzy() {
+        Employee original = insert("姓名片段", "30.00", "男", 1);
+        EmployeeMapper xml = session.getMapper(EmployeeMapper.class);
+        Employee condition = new Employee();
+        condition.setName("姓名片段");
+        condition.setDepartment(marker.substring(2));
+        assertTrue(xml.selectByCondition(condition).isEmpty());
+        condition.setDepartment(marker);
+        assertEquals(Arrays.asList(original.getEmpId()), ids(xml.selectByCondition(condition)));
+        assertEquals(ids(xml.selectByCondition(condition)), ids(xml.selectByConditionWithTrim(condition)));
     }
 
     @Test

@@ -13,6 +13,10 @@ public interface EmpMapper {
 
     Emp selectByIdWithDept(@Param("empno") Integer empno);
 
+    Emp selectByIdWithCard(@Param("empno") Integer empno);
+
+    Emp selectByIdWithProjects(@Param("empno") Integer empno);
+
     List<Emp> selectByDeptno(@Param("deptno") Integer deptno);
 
     int insert(Emp emp);

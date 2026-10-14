@@ -2,6 +2,7 @@ package com.employee;
 
 import com.employee.entity.Employee;
 import com.employee.mapper.EmployeeMapper;
+import com.employee.query.EmployeeSearch;
 import com.employee.util.MyBatisUtil;
 import org.apache.ibatis.session.SqlSession;
 
@@ -20,19 +21,25 @@ public class EmployeeDemo {
 
     public static void main(String[] args) {
         String mode = args.length == 0 ? "list" : args[0];
-        if (!Arrays.asList("list", "crud", "dynamic").contains(mode)) {
-            throw new IllegalArgumentException("参数应为 list、crud 或 dynamic");
+        if ("help".equals(mode)) {
+            System.out.println("EmployeeDemo [list|crud|dynamic|all]；写入演示结束自动回滚");
+            return;
+        }
+        if (!Arrays.asList("list", "crud", "dynamic", "all").contains(mode)) {
+            throw new IllegalArgumentException("参数应为 list、crud、dynamic、all 或 help");
         }
         // try-with-resources：会话用完自动关闭
         try (SqlSession session = MyBatisUtil.openSession()) {
             EmployeeMapper mapper = session.getMapper(EmployeeMapper.class);
 
             try {
-                if ("crud".equals(mode)) {
+                if ("crud".equals(mode) || "all".equals(mode)) {
                     demonstrateCrud(mapper);
-                } else if ("dynamic".equals(mode)) {
+                }
+                if ("dynamic".equals(mode) || "all".equals(mode)) {
                     demonstrateDynamic(mapper);
-                } else {
+                }
+                if ("list".equals(mode) || "all".equals(mode)) {
                     List<Employee> employees = mapper.selectAll();
                     System.out.println("员工总数：" + employees.size());
                     employees.forEach(System.out::println);
@@ -82,6 +89,15 @@ public class EmployeeDemo {
         Employee branch = new Employee();
         branch.setDepartment(department);
         System.out.println("choose 部门分支：" + mapper.selectSmart(branch));
+        branch.setName(found.get(0).getName());
+        branch.setDepartment("不应参与姓名优先分支");
+        System.out.println("choose 姓名优先分支：" + mapper.selectSmart(branch));
+        System.out.println("choose 默认分支记录数：" + mapper.selectSmart(new Employee()).size());
+        EmployeeSearch search = new EmployeeSearch().department(department).status(1)
+                .office("杭州研发中心").salaryBetween(new BigDecimal("6000"), new BigDecimal("6800"))
+                .hiredBetween(LocalDate.of(2023, 1, 1), LocalDate.of(2025, 12, 31));
+        System.out.println("工资/入职日期/办公地点筛选：" + mapper.search(search));
+        System.out.println("trim 同条件结果：" + mapper.searchWithTrim(search));
         System.out.println("批量删除行数：" + mapper.deleteBatch(found.stream()
                 .map(Employee::getEmpId).collect(Collectors.toList())));
     }

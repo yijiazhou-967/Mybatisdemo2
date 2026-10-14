@@ -150,7 +150,7 @@ class EmployeeMapperTest {
         mapper.insert(other);
         Employee condition = new Employee();
         condition.setName(marker);
-        condition.setDepartment(marker.substring(4));
+        condition.setDepartment(marker);
         condition.setGender("男");
         condition.setStatus(0);
         assertEquals(Arrays.asList(match.getEmpId()), ids(mapper.selectByCondition(condition)));

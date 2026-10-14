@@ -8,7 +8,7 @@
 | --- | --- |
 | `src/main/resources/db.properties` | `dept_emp_db` 数据库连接默认配置 |
 | `src/main/resources/db-local.properties` | 本机账号口令，已被 Git 忽略 |
-| `src/main/resources/mybatis-config.xml` | 加载数据库配置、实体别名和两个 Mapper |
+| `src/main/resources/mybatis-config.xml` | 加载数据库配置、实体别名及部门、员工、项目 Mapper |
 | `src/main/resources/log4j.properties` | 控制台 SQL、绑定参数和结果行数日志 |
 | `src/main/java/com/util/MyBatisUtil.java` | 读取配置、共享会话工厂、创建 SqlSession |
 | `src/main/java/com/mapper/DeptMapper.java` | 部门 CRUD 和一对多员工查询 |
@@ -18,6 +18,29 @@
 | `src/test/java/com/mapper/DeptMapperTest.java` | 部门 CRUD、一对多、空部门和逻辑删除测试 |
 | `src/test/java/com/mapper/EmpMapperTest.java` | 员工 CRUD、多对一、空部门引用和事务回滚测试 |
 | `src/test/java/com/mapper/MapperConfigurationTest.java` | 不连接数据库的配置与参数绑定测试 |
+
+关联查询终端入口是 `com.console.RelationshipConsole`，IDEA 可直接选同名运行配置。也可在项目根目录的 PowerShell 中运行：
+
+```powershell
+.\query.cmd --init
+.\query.cmd
+```
+
+`--init` 在 `dept_emp_db` 中创建项目、项目成员和工牌表并补齐样例，重复执行不会覆盖已有记录。终端启动脚本需要 PATH 中有 Maven 和 Java；构建时使用 `docs/query-maven-settings.xml` 与当前用户的 `.m2/repository`，首次运行可能下载依赖。数据库口令继续放在被 Git 忽略的 `db-local.properties` 中。
+
+| 菜单 | 查询内容 | 关联关系 |
+| --- | --- | --- |
+| 1 | 项目编号 → 项目中的员工 | 多对多，通过 `employee_project` 中间表 |
+| 2 | 员工编号 → 员工参与的项目 | 多对多的反向查询 |
+| 3 | 员工编号 → 工牌号和发放日期 | 一对一，`emp_card.empno` 为主键及外键 |
+| 4 | 员工编号 → 所属部门 | 多对一 |
+| 5 | 部门编号 → 部门员工 | 一对多 |
+| 6 | 查看可用的项目、员工、部门编号 | 编号列表 |
+| 0 | 退出终端 | — |
+
+默认隐藏 SQL 日志，运行 `.\query.cmd --sql` 可显示 SQL 与绑定参数。每次查询独立打开并关闭会话，终端只查询数据；非法编号可重新输入，空关联、已删除或不存在的记录有相应提示。样例员工 1 参与办公协作平台和库存追踪系统，并持有工牌；待启动项目没有成员，员工 3 没有项目和工牌。
+
+2026-10-15 关联查询完善后全部 62 项测试通过，包含新增映射检查、5 项数据库关联测试和3项终端交互测试。初始化与 `query.cmd` 实际运行记录位于 `target/relationship-launcher-init.log`、`target/relationship-console-smoke.log`，测试报告位于 `target/surefire-reports/`。
 
 先在 MySQL 客户端执行 `source sql/dept_emp_init.sql;`，再运行以下测试，或在 IDEA 中直接运行两个 Mapper 测试类：
 
@@ -34,6 +57,8 @@
 课程：《JAVA框架技术（一）》。项目使用 `ssm_emp.staff_info` 企业员工档案表，自定义字段和样例数据，并完成实验一的基础 CRUD、动态 SQL、批量操作、MyBatis-Plus 条件查询与分页，以及任务五故障演练。
 
 这是 Java 控制台项目。运行入口为 `com.employee.EmployeeDemo`，结果与 SQL 日志显示在控制台；无需通过 Tomcat 部署。原员工档案功能读取 `employee-mybatis-config.xml`、`jdbc.properties` 和 `jdbc-local.properties`，连接 `ssm_emp.staff_info`。
+
+实验一任务一至四可一次运行 `com.employee.ExperimentOneDemo`，IDEA 中已有同名运行配置。入口依次展示 XML CRUD、动态 SQL、批量操作、BaseMapper CRUD、两种条件构造器和分页，所有临时写入均在结束时回滚。任务一的数据库初始化仍先执行 `sql/init.sql`；Git 仓库已存在，IDEA 中 AI 插件的安装与登录需在自己的账号下完成。
 
 ## 快速运行（IDEA）
 
@@ -85,6 +110,8 @@ SELECT * FROM staff_info ORDER BY staff_id;
 | 留空或 `list` | 查询全部员工 |
 | `crud` | 插入、主键回填、查询、整体更新、删除 |
 | `dynamic` | 批量插入、where/trim 多条件查询、局部更新、choose 分支、批量删除 |
+| `all` | 依次运行基础 CRUD、动态 SQL 和全部员工查询 |
+| `help` | 输出用法，无需连接数据库 |
 
 `MyBatisPlusDemo` 的 Program arguments：
 
@@ -94,6 +121,8 @@ SELECT * FROM staff_info ORDER BY staff_id;
 | `crud` | BaseMapper 增删改查 |
 | `query` | 姓名含刘、性别男、工资至少 5000 元且在职 |
 | `page` | 在职员工第 1 页，每页 3 条，输出记录数与页数 |
+| `page 2 3` | 查看第 2 页，每页 3 条；页码至少为 1，每页最多 100 条 |
+| `help` | 输出用法，无需连接数据库 |
 
 新表中有陈嘉宁、刘子航、孙雨桐、周明远、许安然 5 条样例，其中 4 条在职；默认在职分页为 2 页，第一页 3 条。样例涵盖产品、技术、财务、运维、设计五个部门，以及上海、杭州、成都三处办公地点。邮箱使用示例域名。数据改动后以实际结果为准。
 
@@ -111,7 +140,9 @@ SELECT * FROM staff_info ORDER BY staff_id;
 
 Java 包名统一为 `com.employee`，Mapper XML 与接口位于相同包路径。实体用 `@TableName("staff_info")` 指定新表，通过 `@TableId` 和 `@TableField` 将现有 Java 属性映射到自定义列名。XML 的 `empMap` 覆盖全部 10 个字段。邮箱和办公地点支持普通插入、批量插入、整体更新和局部更新。
 
-`selectByCondition` 和 `selectByConditionWithTrim` 支持姓名/部门模糊查询、性别/状态精确查询；空条件查全部。`selectSmart` 优先按姓名精确查询，其次按部门查询，否则查全部。`updateSelective` 仅更新非空字段，工资和状态为 0 时仍参与更新；入职日期置空使用整体 `update`。
+`selectByCondition` 和 `selectByConditionWithTrim` 支持姓名模糊查询、部门/性别/状态精确查询；空条件查全部。`selectSmart` 优先按姓名精确查询，其次按部门查询，否则查全部。`updateSelective` 仅更新非空字段，工资和状态为 0 时仍参与更新；入职日期置空使用整体 `update`。
+
+独立的 `EmployeeSearch` 查询模型还支持工资上下限、入职日期起止和办公地点，金额与日期均包含端点，空白字符串会忽略。XML 的 `search/searchWithTrim` 与 MP 的两种构造器使用相同条件，按工资降序、主键升序排列；无条件查全部，需要在职限定时显式调用 `.status(1)`。反向区间、负工资、非法状态/性别及错误分页参数在连接数据库前被拒绝。
 
 `EmployeeQueries` 提供 QueryWrapper 与 LambdaQueryWrapper 两种等效写法，支持姓名、性别和最低工资，始终只查在职员工，并按工资降序、主键升序排序。离职状态不作为逻辑删除标记，仍能按 ID 查询。
 
@@ -125,13 +156,13 @@ Java 包名统一为 `com.employee`，Mapper XML 与接口位于相同包路径�
 
 ## 测试
 
-默认 16 项配置、SQL 与参数校验测试无需连接数据库：
+默认配置、SQL 与参数校验测试无需连接数据库：
 
 ```powershell
 .\mvnw.cmd test
 ```
 
-执行 `sql/init.sql` 和 `sql/dept_emp_init.sql` 并配置两个数据库连接后，运行全部 46 项测试：
+执行 `sql/init.sql` 和 `sql/dept_emp_init.sql` 并配置两个数据库连接后，运行全部测试：
 
 ```powershell
 .\mvnw.cmd -Pdatabase-tests test
@@ -139,9 +170,17 @@ Java 包名统一为 `com.employee`，Mapper XML 与接口位于相同包路径�
 
 已安装 Maven 时也可使用 `mvn test`、`mvn -Pdatabase-tests test`。首次使用 Wrapper 需要下载 Maven 3.9.6；依赖也需要联网下载。仅在依赖完整缓存且仓库 ID 匹配时使用 `-o`，不要为了离线运行直接覆盖全局 settings.xml。
 
+与指导书的本地对比可运行以下命令，JSON 记录总体及各文件的匹配比例：
+
+```powershell
+python tools/compare_lab_code.py "指导书.docx的完整路径" --output target/task1-4-similarity.json
+```
+
+该脚本只统计任务一至四的生产代码和配置，排除测试、Maven Wrapper、任务五与部门关联模块。比较规则为去除空白与注释后连续 12 个相同词法单元的覆盖比例，保留标识符和字面量；包含框架必需的配置片段。此指标可复现，但不等同于学校查重系统的结果，也不验证语义相似度。
+
 数据库测试验证字段映射、主键回填、CRUD、动态 SQL、分页边界和事务回滚；各用例只操作独立标记的数据。MySQL 的自增序号在回滚后不会恢复，编号出现间隔是正常现象。报告位于 `target/surefire-reports/`。
 
-2026-10-15 已连接本机 MySQL 8.0.44，创建 `ssm_emp.staff_info`，全部 34 项测试通过。`EmployeeDemo list` 实际查询得到 5 条新样例及邮箱、办公地点；重复执行初始化脚本后仍为 5 条。报告位于 `target/surefire-reports/`。测试使用本机缓存与 `target/employee-verification-settings.xml`，全局 Maven 配置未修改。
+2026-10-15 本次完善后全部 53 项测试通过，其中 21 项无需数据库，32 项使用本机 MySQL（包含原有部门关联与任务五测试）。新增的 7 项测试验证范围端点、部门精确匹配、XML/MP 等效筛选及分页参数。报告位于 `target/surefire-reports/`；测试使用本机缓存与 `target/employee-verification-settings.xml`，全局 Maven 配置未修改。
 
 任务五单独运行：
 

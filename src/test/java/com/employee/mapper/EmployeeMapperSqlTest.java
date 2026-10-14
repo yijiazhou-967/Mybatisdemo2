@@ -41,7 +41,7 @@ class EmployeeMapperSqlTest {
         condition.setStatus(0);
         String where = sql("selectByCondition", condition);
         assertEquals(where, sql("selectByConditionWithTrim", condition));
-        assertTrue(where.contains("WHERE full_name LIKE CONCAT('%', ?, '%') AND department LIKE CONCAT('%', ?, '%') AND gender = ? AND work_status = ?"));
+        assertTrue(where.contains("WHERE full_name LIKE CONCAT('%', ?, '%') AND department = ? AND gender = ? AND work_status = ?"));
         assertFalse(where.contains(condition.getName()));
         assertEquals(4, bound("selectByCondition", condition).getParameterMappings().size());
     }

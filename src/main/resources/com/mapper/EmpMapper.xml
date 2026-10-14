@@ -17,6 +17,17 @@
         <association property="dept" resultMap="com.mapper.DeptMapper.deptMap"
                      columnPrefix="d_" notNullColumn="deptno"/>
     </resultMap>
+    <resultMap id="empWithCardMap" type="Emp" extends="empMap">
+        <association property="card" javaType="EmployeeCard" notNullColumn="c_empno">
+            <id property="empno" column="c_empno"/>
+            <result property="cardNumber" column="c_card_number"/>
+            <result property="issuedOn" column="c_issued_on"/>
+        </association>
+    </resultMap>
+    <resultMap id="empWithProjectsMap" type="Emp" extends="empMap">
+        <collection property="projects" resultMap="com.mapper.ProjectMapper.projectMap"
+                    columnPrefix="p_" notNullColumn="project_id"/>
+    </resultMap>
     <sql id="columns">empno, ename, job, mgr, hiredate, sal, comm, deptno, deleted</sql>
 
     <select id="selectAll" resultMap="empMap">
@@ -36,6 +47,23 @@
         FROM emp e
         LEFT JOIN dept d ON d.deptno = e.deptno AND d.deleted = 0
         WHERE e.empno = #{empno} AND e.deleted = 0
+    </select>
+    <select id="selectByIdWithCard" resultMap="empWithCardMap">
+        SELECT e.empno, e.ename, e.job, e.mgr, e.hiredate, e.sal, e.comm, e.deptno, e.deleted,
+               c.empno AS c_empno, c.card_number AS c_card_number, c.issued_on AS c_issued_on
+        FROM emp e
+        LEFT JOIN emp_card c ON c.empno = e.empno
+        WHERE e.empno = #{empno} AND e.deleted = 0
+    </select>
+    <select id="selectByIdWithProjects" resultMap="empWithProjectsMap">
+        SELECT e.empno, e.ename, e.job, e.mgr, e.hiredate, e.sal, e.comm, e.deptno, e.deleted,
+               p.project_id AS p_project_id, p.project_code AS p_project_code,
+               p.title AS p_title, p.start_date AS p_start_date, p.deleted AS p_deleted
+        FROM emp e
+        LEFT JOIN employee_project link ON link.empno = e.empno
+        LEFT JOIN project p ON p.project_id = link.project_id AND p.deleted = 0
+        WHERE e.empno = #{empno} AND e.deleted = 0
+        ORDER BY p.project_id
     </select>
     <insert id="insert" parameterType="Emp" useGeneratedKeys="true" keyProperty="empno">
         INSERT INTO emp (ename, job, mgr, hiredate, sal, comm, deptno, deleted)

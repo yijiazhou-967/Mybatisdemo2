@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mapper.ProjectMapper">
+    <resultMap id="projectMap" type="Project">
+        <id property="projectId" column="project_id"/>
+        <result property="projectCode" column="project_code"/>
+        <result property="title" column="title"/>
+        <result property="startDate" column="start_date"/>
+        <result property="deleted" column="deleted"/>
+    </resultMap>
+    <resultMap id="projectWithEmpsMap" type="Project" extends="projectMap">
+        <collection property="emps" resultMap="com.mapper.EmpMapper.empMap"
+                    columnPrefix="e_" notNullColumn="empno"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="projectMap">
+        SELECT project_id, project_code, title, start_date, deleted
+        FROM project WHERE deleted = 0 ORDER BY project_id
+    </select>
+    <select id="selectByIdWithEmps" resultMap="projectWithEmpsMap">
+        SELECT p.project_id, p.project_code, p.title, p.start_date, p.deleted,
+               e.empno AS e_empno, e.ename AS e_ename, e.job AS e_job, e.mgr AS e_mgr,
+               e.hiredate AS e_hiredate, e.sal AS e_sal, e.comm AS e_comm,
+               e.deptno AS e_deptno, e.deleted AS e_deleted
+        FROM project p
+        LEFT JOIN employee_project link ON link.project_id = p.project_id
+        LEFT JOIN emp e ON e.empno = link.empno AND e.deleted = 0
+        WHERE p.project_id = #{projectId} AND p.deleted = 0
+        ORDER BY e.empno
+    </select>
+    <insert id="insert" parameterType="Project" useGeneratedKeys="true" keyProperty="projectId">
+        INSERT INTO project (project_code, title, start_date, deleted)
+        VALUES (#{projectCode}, #{title}, #{startDate,jdbcType=DATE}, 0)
+    </insert>
+</mapper>

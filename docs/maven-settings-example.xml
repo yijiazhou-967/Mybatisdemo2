@@ -19,7 +19,7 @@
                               https://maven.apache.org/xsd/settings-1.2.0.xsd">
 
     <!-- 1. 本地仓库路径：指向你自己的 Maven 仓库目录（按需修改） -->
-    <localRepository>D:/maven/repository</localRepository>
+    <localRepository>${user.home}/.m2/repository</localRepository>
 
     <!-- 2. 镜像配置：让所有依赖从阿里云公共仓库下载，显著提升国内下载速度 -->
     <mirrors>

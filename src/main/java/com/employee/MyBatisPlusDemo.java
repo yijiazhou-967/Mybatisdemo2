@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.employee.entity.Employee;
 import com.employee.mapper.EmployeePlusMapper;
 import com.employee.query.EmployeeQueries;
+import com.employee.query.EmployeeSearch;
 import com.employee.util.MyBatisUtil;
 import org.apache.ibatis.session.SqlSession;
 
@@ -19,8 +20,18 @@ public final class MyBatisPlusDemo {
 
     public static void main(String[] args) {
         String mode = args.length == 0 ? "all" : args[0];
+        if ("help".equals(mode)) {
+            System.out.println("MyBatisPlusDemo [all|crud|query|page] [页码] [每页条数]；默认第1页、每页3条");
+            return;
+        }
         if (!Arrays.asList("all", "crud", "query", "page").contains(mode)) {
             throw new IllegalArgumentException("参数应为 all、crud、query 或 page");
+        }
+        long pageNumber = args.length > 1 ? Long.parseLong(args[1]) : 1;
+        long pageSize = args.length > 2 ? Long.parseLong(args[2]) : 3;
+        if (("all".equals(mode) || "page".equals(mode))
+                && (pageNumber < 1 || pageSize < 1 || pageSize > 100)) {
+            throw new IllegalArgumentException("页码必须从 1 开始，每页条数必须在 1 到 100 之间");
         }
         try (SqlSession session = MyBatisUtil.openSession()) {
             EmployeePlusMapper mapper = session.getMapper(EmployeePlusMapper.class);
@@ -37,8 +48,7 @@ public final class MyBatisPlusDemo {
                             .forEach(System.out::println);
                 }
                 if ("all".equals(mode) || "page".equals(mode)) {
-                    Page<Employee> result = mapper.selectPage(new Page<>(1, 3),
-                            EmployeeQueries.lambdaQueryWrapper(null, null, null));
+                    Page<Employee> result = mapper.findPage(new EmployeeSearch().status(1), pageNumber, pageSize);
                     System.out.println("第 " + result.getCurrent() + " 页，每页 " + result.getSize() + " 条");
                     System.out.println("总记录数 = " + result.getTotal());
                     System.out.println("总页数 = " + result.getPages());

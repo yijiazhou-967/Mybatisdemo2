@@ -3,6 +3,8 @@ package com.entity;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import java.io.Serializable;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 员工实体类（emp 表）
@@ -28,6 +30,9 @@ public class Emp implements Serializable {
 
     // 多对一关系：一个员工属于一个部门
     private Dept dept;         // 部门对象
+
+    private EmployeeCard card; // 一对一：员工工牌
+    private List<Project> projects = new ArrayList<>(); // 多对多：参与的项目
 
     // 构造方法
     public Emp() {
@@ -125,6 +130,11 @@ public class Emp implements Serializable {
     public void setDept(Dept dept) {
         this.dept = dept;
     }
+
+    public EmployeeCard getCard() { return card; }
+    public void setCard(EmployeeCard card) { this.card = card; }
+    public List<Project> getProjects() { return projects; }
+    public void setProjects(List<Project> projects) { this.projects = projects; }
 
     // toString 方法
     @Override
